@@ -113,11 +113,13 @@ p.connection-error { color: var(--ar-red); }
 .capability:nth-child(n + 3) { border-top: 1px solid var(--framer-color-divider); }
 .capability:nth-child(even) { border-left: 1px solid var(--framer-color-divider); }
 .integrations {
+  margin-top: 10px;
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
   align-items: start;
 }
+.integrations:empty { display: none; }
 @media (max-width: 460px) {
   .columns, .capability-list, .integrations { grid-template-columns: 1fr; }
   .capability:nth-child(even) { border-left: 0; }
