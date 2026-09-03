@@ -162,10 +162,12 @@ npm run typecheck --prefix cloudflare
 `npm test` executes all 30 Direct runtime tools in a simulated browser and validates the same-origin Cloudflare MCP gateway. Verify the deployed Framer page separately with:
 
 ```bash
-AGENTREADY_DEMO_URL=https://agentready.framer.website npm run test:live
+AGENTREADY_DEMO_URL=https://agentready.framer.website \
+AGENTREADY_STRICT_INSTALLATION=1 \
+npm run test:live
 ```
 
-The current Framer project still contains one user-managed legacy AgentReady Custom Code entry in addition to the plugin-managed entry. Live validation selects and reports the newest runtime and warns about the duplicate; after the owner removes the legacy entry, set `AGENTREADY_STRICT_INSTALLATION=1` to require exactly one installation.
+The live Framer project has one plugin-managed AgentReady Custom Code installation. Strict validation fails if a legacy or parallel plugin identity introduces a duplicate runtime.
 
 Then inspect the real browser surface in Chrome 149+:
 

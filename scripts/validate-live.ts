@@ -97,5 +97,5 @@ assert.equal(dom.window.document.querySelector<HTMLInputElement>('[name="buyerNa
 assert.equal(dom.window.document.querySelector<HTMLInputElement>('[name="buyerEmail"]')?.value, "agent@example.com")
 
 console.log(`AgentReady live validation passed: ${demoUrl}`)
-if (installations.length > 1) console.warn(`Warning: ${installations.length} AgentReady Custom Code entries detected; validated the newest one. Use AGENTREADY_STRICT_INSTALLATION=1 after legacy cleanup.`)
+if (installations.length > 1) console.warn(`Warning: ${installations.length} AgentReady Custom Code entries detected; validated the newest one. Remove duplicate plugin identities and rerun with AGENTREADY_STRICT_INSTALLATION=1.`)
 console.log(`Registered tools: ${names.join(", ")}`)
