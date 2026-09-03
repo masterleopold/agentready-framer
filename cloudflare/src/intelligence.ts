@@ -128,11 +128,18 @@ async function searchKnowledge(request: Request, env: Env, origin: string) {
   const query = cleanText(input.query, 1000)
   if (!query) return json({ error: "query is required" }, 400, cors(origin))
   const limit = Math.min(10, Math.max(1, Number(input.limit) || 5))
-  const result = await env.AI_SEARCH.get(env.AI_SEARCH_INSTANCE).search({
+  const instance = env.AI_SEARCH.get(env.AI_SEARCH_INSTANCE)
+  const options = { retrieval: { retrieval_type: "hybrid" as const, max_num_results: limit }, query_rewrite: { enabled: true } }
+  let result = await instance.search({
     query,
-    ai_search_options: { retrieval: { retrieval_type: "hybrid", max_num_results: limit }, query_rewrite: { enabled: true } },
+    ai_search_options: options,
   })
-  return json({ query: result.search_query, results: searchSources(result), count: result.chunks.length, index: env.AI_SEARCH_INSTANCE }, 200, cors(origin))
+  let contextualFallback = false
+  if (!result.chunks.length) {
+    result = await instance.search({ query: `${query} AgentReady Framer site documentation`, ai_search_options: options })
+    contextualFallback = true
+  }
+  return json({ query: result.search_query, requestedQuery: query, contextualFallback, results: searchSources(result), count: result.chunks.length, index: env.AI_SEARCH_INSTANCE }, 200, cors(origin))
 }
 
 async function answerKnowledge(request: Request, env: Env, origin: string) {
