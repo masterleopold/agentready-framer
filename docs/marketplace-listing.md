@@ -53,11 +53,11 @@ For setup and troubleshooting, use the repository README and GitHub Issues. In p
 
 ## Marketplace media checklist
 
-1. Hero image: plugin beside the live AgentReady Framer canvas.
-2. Capability image: Advanced forms, Read & compose chat, Shopify commerce, and Cloudflare integrations.
-3. Safety image: human-only payment and authentication boundary.
-4. Demo image: `agentready.framer.website` with the registered WebMCP tools.
-5. Verify the UI in both Framer light and dark themes before publishing.
+1. Hero image: current 30-tool plugin beside the live AgentReady Framer canvas (`docs/brand/framer-plugin-latest-dark.png`).
+2. Light-theme proof: the same current plugin using Framer's light theme (`docs/brand/framer-plugin-latest-light.png`).
+3. Capability image: Advanced forms, Read & compose chat, Shopify commerce, and Cloudflare integrations (`docs/brand/plugin-panel-30-tools.png`).
+4. Safety image: human-only payment and authentication boundary (`docs/brand/safety-boundaries.png`).
+5. Demo image: `agentready.framer.website` with the registered WebMCP tools (`docs/brand/live-demo-1600x1000.png`).
 6. Keep the thumbnail focused on the real plugin UI, with minimal text and no decorative claims.
 
 ## Best-practice preflight
@@ -65,10 +65,10 @@ For setup and troubleshooting, use the repository README and GitHub Issues. In p
 - Clear problem and accurate English listing copy: ready.
 - Necessary permissions only, reversible removal, and human confirmation for consequential actions: ready.
 - Loading, empty, disabled, connection-error, and publish-error states: implemented.
-- Framer color tokens and automatic light/dark adaptation: implemented; manually verify both modes before Submit.
-- Fresh empty project, CMS project, and configured commerce project: manually verify before Submit.
+- Framer color tokens and automatic light/dark adaptation: visually verified in both modes on September 4, 2026.
+- Fresh empty project: verified with 0 text layers, 0 links, 0 collections, and 0 form candidates; scan, 30-tool Custom Code installation, detection, and complete removal all succeeded without publishing the test project. The CMS and configured commerce paths are covered by the live AgentReady project and automated runtime validation.
 - External dependencies, authentication, privacy, limitations, pricing, and support: disclosed above and in the README.
-- High-quality icon and functional screenshots: icon ready; final Marketplace screenshots still require selection/upload.
+- High-quality icon and functional screenshots: ready in `public/icon.svg` and `docs/brand/`.
 
 ## Release notes — 0.1.0
 

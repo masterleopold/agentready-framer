@@ -10,7 +10,7 @@
 
 **Live Shopify product:** [AgentReady — WebMCP Builder for Framer](https://tkigey-1f.myshopify.com/products/agentready-webmcp-builder-for-framer). The Framer playground presents Creator **$49**, Studio **$149**, and Agency **$399**; the connected Shopify development store currently charges the corresponding configured variants in JPY (¥7,500 / ¥22,500 / ¥60,000). Selecting a plan opens that exact variant through Shopify's hosted cart, while payment remains an explicit human action.
 
-![AgentReady running as a development plugin inside Framer](docs/framer-plugin-live.jpg)
+![AgentReady running all 30 WebMCP tools inside Framer](docs/brand/framer-plugin-latest-dark.png)
 
 ## What it does
 
