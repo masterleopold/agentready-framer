@@ -4,7 +4,7 @@ import { buildOriginTrialCustomCode, buildWebMcpCustomCode } from "./runtime"
 import type { CapabilityId, CmsCollectionSnapshot, RuntimeConfig, SiteScan } from "./types"
 import "./App.css"
 
-framer.showUI({ position: "top right", width: 300, height: 720 })
+framer.showUI({ position: "top right", width: 560, height: 720 })
 
 const CAPABILITIES: Array<{ id: CapabilityId; title: string; description: string; risk?: string }> = [
   { id: "siteSearch", title: "Search website", description: "Find matching text, sections, and links on the current page." },
@@ -392,6 +392,7 @@ export function App() {
         <span className={`status-pill ${installed ? "live" : ""}`}>{installed ? "Installed" : "Not installed"}</span>
       </header>
 
+      <div className="columns">
       <section className="card">
         <div className="scan-card-top">
           <div><div className="section-label">Site scan</div><strong>{scan?.projectName ?? "Reading project…"}</strong></div>
@@ -426,6 +427,7 @@ export function App() {
         <input value={originTrialToken} onChange={(event) => setOriginTrialToken(event.target.value.replace(/\s+/g, ""))} placeholder="Optional first-party origin trial token" aria-label="Chrome WebMCP origin trial token" />
         <p className={validOriginTrialToken ? "connection-result" : "connection-error"}>{validOriginTrialToken ? (originTrialToken ? "Token will be installed in the document head. Verify its origin and expiry in Chrome DevTools." : "Optional for local testing with chrome://flags/#enable-webmcp-testing.") : "Paste the complete first-party token without spaces."}</p>
       </section>
+      </div>
 
       <section className="capabilities">
         <div className="section-label">Capabilities<span>{toolCount} of {FULL_DIRECT_TOOL_COUNT} tools</span></div>
@@ -439,6 +441,7 @@ export function App() {
             </label>
           })}
         </div>
+        <div className="integrations">
         {enabled.includes("shopifyCommerce") && <div className="card">
           <div className="section-label">Shopify</div>
           <input value={shopifyDomain} onChange={(event) => setShopifyDomain(event.target.value)} placeholder="store.myshopify.com" aria-label="Shopify store domain" />
@@ -471,6 +474,7 @@ export function App() {
           <label className="compact-check"><input type="checkbox" checked={telemetryEnabled} onChange={(event) => setTelemetryEnabled(event.target.checked)} />Anonymous WebMCP tool analytics</label>
           <p>{validIntelligenceEndpoint ? "Ready · AI Search, provenance, analytics, and Browser Run verification." : "Enter the HTTPS URL of the AgentReady intelligence Worker."}</p>
         </div>}
+        </div>
       </section>
 
       {disabledByUser && <div className="notice warning">Custom Code is disabled in Site Settings. Enable it before testing.</div>}
