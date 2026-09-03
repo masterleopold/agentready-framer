@@ -67,7 +67,10 @@ export function App() {
   const [publishedUrl, setPublishedUrl] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [shopifyDomain, setShopifyDomain] = useState("")
+  const [shopifyMode, setShopifyMode] = useState<"auto" | "mcp" | "graphql">("auto")
+  const [shopifyAgentProfile, setShopifyAgentProfile] = useState("https://shopify.dev/ucp/agent-profiles/examples/2026-08-25/valid-with-capabilities.json")
   const [shopifyToken, setShopifyToken] = useState("")
+  const [shopifyConnection, setShopifyConnection] = useState<{ state: "idle" | "testing" | "ready" | "error"; message: string }>({ state: "idle", message: "" })
   const [paymentEndpoint, setPaymentEndpoint] = useState("")
   const [intelligenceEndpoint, setIntelligenceEndpoint] = useState("")
   const [telemetryEnabled, setTelemetryEnabled] = useState(true)
@@ -115,6 +118,8 @@ export function App() {
         const parsed = JSON.parse(stored) as Partial<{
           enabled: CapabilityId[]
           shopifyDomain: string
+          shopifyMode: "auto" | "mcp" | "graphql"
+          shopifyAgentProfile: string
           shopifyToken: string
           paymentEndpoint: string
           intelligenceEndpoint: string
@@ -124,6 +129,8 @@ export function App() {
         }>
         if (Array.isArray(parsed.enabled)) setEnabled(parsed.enabled.filter((id): id is CapabilityId => CAPABILITIES.some((capability) => capability.id === id)))
         if (typeof parsed.shopifyDomain === "string") setShopifyDomain(parsed.shopifyDomain)
+        if (["auto", "mcp", "graphql"].includes(parsed.shopifyMode ?? "")) setShopifyMode(parsed.shopifyMode as "auto" | "mcp" | "graphql")
+        if (typeof parsed.shopifyAgentProfile === "string") setShopifyAgentProfile(parsed.shopifyAgentProfile)
         if (typeof parsed.shopifyToken === "string") setShopifyToken(parsed.shopifyToken)
         if (typeof parsed.paymentEndpoint === "string") setPaymentEndpoint(parsed.paymentEndpoint)
         if (typeof parsed.intelligenceEndpoint === "string") setIntelligenceEndpoint(parsed.intelligenceEndpoint)
@@ -139,23 +146,53 @@ export function App() {
   useEffect(() => {
     if (!settingsLoaded || !canSaveSettings) return
     const timeout = window.setTimeout(() => {
-      void framer.setPluginData(SETTINGS_KEY, JSON.stringify({ enabled, shopifyDomain, shopifyToken, paymentEndpoint, intelligenceEndpoint, telemetryEnabled, crawlPrice, allowAiTraining }))
+      void framer.setPluginData(SETTINGS_KEY, JSON.stringify({ enabled, shopifyDomain, shopifyMode, shopifyAgentProfile, shopifyToken, paymentEndpoint, intelligenceEndpoint, telemetryEnabled, crawlPrice, allowAiTraining }))
     }, 250)
     return () => window.clearTimeout(timeout)
-  }, [allowAiTraining, canSaveSettings, crawlPrice, enabled, intelligenceEndpoint, paymentEndpoint, settingsLoaded, shopifyDomain, shopifyToken, telemetryEnabled])
+  }, [allowAiTraining, canSaveSettings, crawlPrice, enabled, intelligenceEndpoint, paymentEndpoint, settingsLoaded, shopifyAgentProfile, shopifyDomain, shopifyMode, shopifyToken, telemetryEnabled])
 
   const validShopifyDomain = /^[a-z0-9][a-z0-9-]*\.myshopify\.com$/i.test(shopifyDomain.trim().replace(/^https?:\/\//, "").replace(/\/$/, ""))
+  const validShopifyAgentProfile = /^https:\/\/[a-z0-9.-]+(?::\d+)?(?:\/.*)?$/i.test(shopifyAgentProfile.trim())
   const validPaymentEndpoint = /^https:\/\/[a-z0-9.-]+(?::\d+)?(?:\/.*)?$/i.test(paymentEndpoint.trim())
   const validIntelligenceEndpoint = /^https:\/\/[a-z0-9.-]+(?::\d+)?(?:\/.*)?$/i.test(intelligenceEndpoint.trim())
   const validCrawlPrice = /^\d+(?:\.\d{1,6})?$/.test(crawlPrice) && Number(crawlPrice) > 0
+  const testShopifyConnection = async () => {
+    if (!validShopifyDomain || (shopifyMode !== "graphql" && !validShopifyAgentProfile)) return
+    const storeDomain = shopifyDomain.trim().replace(/^https?:\/\//, "").replace(/\/$/, "")
+    setShopifyConnection({ state: "testing", message: "Discovering Shopify tools…" })
+    try {
+      if (shopifyMode === "graphql") {
+        const headers: Record<string, string> = { "Content-Type": "application/json" }
+        if (shopifyToken.trim()) headers["X-Shopify-Storefront-Access-Token"] = shopifyToken.trim()
+        const response = await fetch(`https://${storeDomain}/api/2026-07/graphql.json`, { method: "POST", headers, body: JSON.stringify({ query: "query AgentReadyConnection { shop { name } }" }) })
+        const payload = await response.json() as { data?: { shop?: { name?: string } }; errors?: Array<{ message?: string }> }
+        if (!response.ok || payload.errors?.length) throw new Error(payload.errors?.[0]?.message || `GraphQL returned ${response.status}`)
+        setShopifyConnection({ state: "ready", message: `GraphQL ready · ${payload.data?.shop?.name || storeDomain}` })
+        return
+      }
+      const discover = async (path: string) => {
+        const response = await fetch(`https://${storeDomain}${path}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list", params: {} }) })
+        const payload = await response.json() as { result?: { tools?: Array<{ name?: string }> }; error?: { message?: string } }
+        if (!response.ok || payload.error) throw new Error(payload.error?.message || `${path} returned ${response.status}`)
+        return payload.result?.tools?.map((tool) => tool.name).filter(Boolean) ?? []
+      }
+      const [standard, ucp] = await Promise.all([discover("/api/mcp"), discover("/api/ucp/mcp")])
+      const expected = ["get_cart", "update_cart", "search_shop_policies_and_faqs", "search_catalog", "lookup_catalog", "get_product"]
+      const discovered = new Set([...standard, ...ucp])
+      const missing = expected.filter((name) => !discovered.has(name))
+      setShopifyConnection({ state: "ready", message: missing.length ? `${discovered.size} tools found · ${missing.length} unavailable` : "6 native Shopify tools discovered" })
+    } catch (connectionError) {
+      setShopifyConnection({ state: "error", message: `${connectionError instanceof Error ? connectionError.message : "Connection failed"}${shopifyMode === "auto" ? " · GraphQL fallback remains available" : ""}` })
+    }
+  }
   const effectiveEnabled = useMemo(() => enabled.filter((id) => {
     if (id === "cmsSearch") return Boolean(scan?.collections.length)
-    if (id === "shopifyCommerce") return validShopifyDomain
+    if (id === "shopifyCommerce") return validShopifyDomain && (shopifyMode === "graphql" || validShopifyAgentProfile)
     if (id === "agenticPayments") return validPaymentEndpoint
     if (id === "cloudflareKnowledge") return validIntelligenceEndpoint
     if (id === "payPerCrawl") return validCrawlPrice
     return true
-  }), [enabled, scan, validCrawlPrice, validIntelligenceEndpoint, validPaymentEndpoint, validShopifyDomain])
+  }), [enabled, scan, shopifyMode, validCrawlPrice, validIntelligenceEndpoint, validPaymentEndpoint, validShopifyAgentProfile, validShopifyDomain])
   const toolCount = effectiveEnabled.reduce((count, id) => count + ({
     siteSearch: 1,
     cmsSearch: 2,
@@ -164,7 +201,7 @@ export function App() {
     conversation: 2,
     chatSend: 1,
     checkoutAssist: 2,
-    shopifyCommerce: 5,
+    shopifyCommerce: 7,
     agenticPayments: 2,
     payPerCrawl: 1,
     cloudflareKnowledge: 3,
@@ -187,7 +224,13 @@ export function App() {
         generatedAt: new Date().toISOString(),
         capabilities: effectiveEnabled,
         collections: scan.collections,
-        shopify: validShopifyDomain ? { storeDomain, publicAccessToken: shopifyToken.trim() || undefined, apiVersion: "2026-07" } : undefined,
+        shopify: validShopifyDomain ? {
+          storeDomain,
+          connectionMode: shopifyMode,
+          agentProfile: validShopifyAgentProfile ? shopifyAgentProfile.trim() : undefined,
+          publicAccessToken: shopifyMode !== "mcp" ? shopifyToken.trim() || undefined : undefined,
+          apiVersion: "2026-07",
+        } : undefined,
         cloudflarePayments: validPaymentEndpoint ? { endpoint: paymentEndpoint.trim().replace(/\/$/, "") } : undefined,
         cloudflareIntelligence: validIntelligenceEndpoint ? { endpoint: intelligenceEndpoint.trim().replace(/\/$/, ""), telemetry: telemetryEnabled } : undefined,
         crawlMonetization: validCrawlPrice ? { currency: "USD", pricePerRequest: crawlPrice, purposes: { search: true, aiInput: true, aiTrain: allowAiTraining }, contentUse: allowAiTraining ? "full" : "reference" } : undefined,
@@ -268,10 +311,18 @@ export function App() {
           })}
         </div>
         {enabled.includes("shopifyCommerce") && <div className="integration-settings">
-          <div className="section-label">SHOPIFY STOREFRONT</div>
+          <div className="section-label">SHOPIFY STOREFRONT MCP + UCP</div>
           <input value={shopifyDomain} onChange={(event) => setShopifyDomain(event.target.value)} placeholder="store.myshopify.com" aria-label="Shopify store domain" />
-          <input value={shopifyToken} onChange={(event) => setShopifyToken(event.target.value)} placeholder="Public access token (optional)" aria-label="Shopify public Storefront token" />
-          <p>{validShopifyDomain ? "Ready · private Admin tokens are never accepted." : "Enter a .myshopify.com domain to enable 5 commerce tools."}</p>
+          <select value={shopifyMode} onChange={(event) => setShopifyMode(event.target.value as "auto" | "mcp" | "graphql")} aria-label="Shopify connection mode">
+            <option value="auto">Auto · MCP with GraphQL fallback</option>
+            <option value="mcp">Storefront MCP only</option>
+            <option value="graphql">Storefront GraphQL only</option>
+          </select>
+          {shopifyMode !== "graphql" && <input value={shopifyAgentProfile} onChange={(event) => setShopifyAgentProfile(event.target.value)} placeholder="https://…/ucp-agent.json" aria-label="UCP agent profile URL" />}
+          {shopifyMode !== "mcp" && <input value={shopifyToken} onChange={(event) => setShopifyToken(event.target.value)} placeholder="Public Storefront token · fallback only" aria-label="Shopify public Storefront token" />}
+          <button type="button" className="integration-test" disabled={!validShopifyDomain || shopifyConnection.state === "testing" || (shopifyMode !== "graphql" && !validShopifyAgentProfile)} onClick={() => void testShopifyConnection()}>{shopifyConnection.state === "testing" ? "Testing…" : "Test Shopify connection"}</button>
+          {shopifyConnection.message && <p className={shopifyConnection.state === "error" ? "connection-error" : "connection-result"}>{shopifyConnection.message}</p>}
+          <p>{validShopifyDomain && (shopifyMode === "graphql" || validShopifyAgentProfile) ? "Ready · 7 tools, native MCP/UCP discovery, safe hosted checkout." : "Enter a .myshopify.com domain and HTTPS UCP profile URL."}</p>
         </div>}
         {enabled.includes("agenticPayments") && <div className="integration-settings">
           <div className="section-label">CLOUDFLARE AGENTIC PAYMENTS</div>

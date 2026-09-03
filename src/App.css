@@ -195,7 +195,8 @@ h1 {
   border: 1px solid rgba(255, 255, 255, .1);
   border-radius: 14px;
 }
-.integration-settings input {
+.integration-settings input,
+.integration-settings select {
   width: 100%;
   padding: 9px 10px;
   color: #fff;
@@ -205,8 +206,15 @@ h1 {
   outline: none;
   font-size: 10px;
 }
-.integration-settings input:focus { border-color: #0099ff; box-shadow: 0 0 0 2px rgba(0, 153, 255, .14); }
+.integration-settings select { appearance: none; background-image: linear-gradient(45deg, transparent 50%, rgba(255,255,255,.55) 50%), linear-gradient(135deg, rgba(255,255,255,.55) 50%, transparent 50%); background-position: calc(100% - 14px) 50%, calc(100% - 10px) 50%; background-size: 4px 4px, 4px 4px; background-repeat: no-repeat; }
+.integration-settings input:focus,
+.integration-settings select:focus { border-color: #0099ff; box-shadow: 0 0 0 2px rgba(0, 153, 255, .14); }
 .integration-settings p { margin: 0; color: rgba(255, 255, 255, .42); font-size: 9px; line-height: 1.35; }
+.integration-settings .integration-test { align-self: flex-start; padding: 7px 10px; border: 1px solid rgba(255,255,255,.12); border-radius: 8px; background: rgba(255,255,255,.07); color: rgba(255,255,255,.78); font-size: 9px; cursor: pointer; }
+.integration-settings .integration-test:hover:not(:disabled) { background: rgba(255,255,255,.12); }
+.integration-settings .integration-test:disabled { opacity: .4; cursor: default; }
+.integration-settings p.connection-result { color: #65dca0; }
+.integration-settings p.connection-error { color: #ff8c82; }
 .compact-check { display: flex; align-items: center; gap: 7px; color: rgba(255, 255, 255, .66); font-size: 9px; }
 .compact-check input { width: 13px; height: 13px; margin: 0; accent-color: #0099ff; }
 

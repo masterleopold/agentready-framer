@@ -9,7 +9,7 @@ const expectedTools = [
   "inspect_forms", "prefill_form", "fill_address", "select_form_options",
   "set_form_date", "advance_form_step", "prepare_file_upload",
   "read_conversation", "compose_chat_message", "send_chat_message",
-  "search_shopify_products", "inspect_shopify_cart", "add_shopify_cart_line", "update_shopify_cart", "prepare_shopify_checkout",
+  "search_shopify_catalog", "lookup_shopify_catalog", "get_shopify_product", "search_shopify_policies", "get_shopify_cart", "update_shopify_cart", "prepare_shopify_checkout",
   "inspect_agentic_offers", "request_agentic_payment",
   "discover_paid_content",
   "inspect_checkout", "prepare_checkout", "submit_form",
@@ -26,7 +26,7 @@ const config: RuntimeConfig = {
     fields: [{ id: "name", name: "Name", type: "string" }],
     items: [{ slug: "agent-kit", draft: false, fields: { Name: "Agent Kit" } }],
   }],
-  shopify: { storeDomain: "agentready.myshopify.com", publicAccessToken: "public-demo-token", apiVersion: "2026-07" },
+  shopify: { storeDomain: "agentready.myshopify.com", connectionMode: "auto", agentProfile: "https://agentready.example/.well-known/ucp-agent.json", publicAccessToken: "public-demo-token", apiVersion: "2026-07" },
   cloudflarePayments: { endpoint: "https://agentready-payments.workers.dev" },
   cloudflareIntelligence: { endpoint: "https://agentready-intelligence.workers.dev", telemetry: true },
   crawlMonetization: { currency: "USD", pricePerRequest: "0.01", purposes: { search: true, aiInput: true, aiTrain: false }, contentUse: "reference" },
@@ -115,6 +115,8 @@ const shopifyCart = {
   lines: { nodes: [{ id: "gid://shopify/CartLine/1", quantity: 1, merchandise: { id: "gid://shopify/ProductVariant/1", title: "Default", product: { handle: "agent-kit", title: "Agent Kit" }, price: { amount: "29.00", currencyCode: "USD" }, selectedOptions: [] } }] },
 }
 const telemetryPayloads: Array<Record<string, unknown>> = []
+const shopifyMcpPayloads: Array<Record<string, unknown>> = []
+let shopifyStandardRateLimits = 0
 Object.defineProperty(dom.window, "fetch", { value: async (url: string, init?: { body?: string }) => {
   if (url.endsWith("/v1/telemetry")) {
     telemetryPayloads.push(JSON.parse(init?.body ?? "{}") as Record<string, unknown>)
@@ -140,6 +142,31 @@ Object.defineProperty(dom.window, "fetch", { value: async (url: string, init?: {
   if (url.endsWith("/v1/offers")) return {
     ok: true, status: 200, headers: { get: () => null },
     json: async () => ({ offers: [{ id: "agentready-creator", amount: "49" }] }),
+  }
+  if (url.includes("agentready.myshopify.com/api/mcp") || url.includes("agentready.myshopify.com/api/ucp/mcp")) {
+    const payload = JSON.parse(init?.body ?? "{}") as { method: string; params?: { name?: string; arguments?: Record<string, unknown> } }
+    shopifyMcpPayloads.push(payload as unknown as Record<string, unknown>)
+    const ucp = url.includes("/api/ucp/mcp")
+    const tools = ucp
+      ? ["search_catalog", "lookup_catalog", "get_product"]
+      : ["search_shop_policies_and_faqs", "get_cart", "update_cart"]
+    if (payload.method === "tools/list" && !ucp && shopifyStandardRateLimits++ === 0) return {
+      ok: false, status: 429, headers: { get: (name: string) => name === "Retry-After" ? "0" : null }, json: async () => ({ error: "rate limited" }),
+    }
+    if (payload.method === "tools/list") return {
+      ok: true, status: 200, headers: { get: () => null },
+      json: async () => ({ jsonrpc: "2.0", id: 1, result: { tools: tools.map((name) => ({ name, inputSchema: { type: "object", properties: name === "update_cart" ? { add_items: { type: "array" } } : {} } })) } }),
+    }
+    const name = payload.params?.name
+    let result: Record<string, unknown>
+    if (name === "search_catalog") result = { ucp: { version: "2026-08-25" }, products: [{ id: "gid://shopify/Product/1", title: "Agent Kit", variants: [{ id: "gid://shopify/ProductVariant/1", title: "Default", price: { amount: 2900, currency: "USD" } }] }] }
+    else if (name === "lookup_catalog" || name === "get_product") result = { product: { id: "gid://shopify/Product/1", title: "Agent Kit", variants: [{ id: "gid://shopify/ProductVariant/1" }] } }
+    else if (name === "search_shop_policies_and_faqs") result = { answer: "Returns are accepted within 30 days." }
+    else result = { cart_id: "gid://shopify/Cart/demo?key=secret", checkout_url: "https://agentready.myshopify.com/checkouts/demo", total_quantity: 1, line_items: [{ id: "gid://shopify/CartLine/1", quantity: 1 }] }
+    return {
+      ok: true, status: 200, headers: { get: () => null },
+      json: async () => ({ jsonrpc: "2.0", id: 2, result: { content: [{ type: "text", text: JSON.stringify(result) }] } }),
+    }
   }
   assert.ok(init?.body)
   const { query } = JSON.parse(init.body) as { query: string }
@@ -208,14 +235,26 @@ const sent = await run("send_chat_message", { message: "We have 12 people.", wai
 assert.equal(sent.sent, true)
 assert.equal((sent.newMessages as ConversationMessage[]).at(-1)?.role, "assistant")
 
-const products = await run("search_shopify_products", { query: "agent", first: 5 })
-assert.equal(products.count, 1)
-const added = await run("add_shopify_cart_line", { merchandiseId: "gid://shopify/ProductVariant/1", quantity: 1 })
-assert.equal(added.added, true)
-assert.equal((await run("inspect_shopify_cart")).cart !== null, true)
+const products = await run("search_shopify_catalog", { query: "agent", limit: 5, context: { addressCountry: "jp", language: "ja", currency: "jpy" } })
+assert.equal(products.transport, "ucp")
+assert.equal((await run("lookup_shopify_catalog", { ids: ["gid://shopify/Product/1"] })).transport, "ucp")
+assert.equal((await run("get_shopify_product", { id: "gid://shopify/Product/1", selected: [{ name: "Color", label: "Blue" }] })).transport, "ucp")
+assert.equal((await run("search_shopify_policies", { query: "Returns?" })).sourcePolicy, "merchant-only")
+const added = await run("update_shopify_cart", { lines: [{ merchandiseId: "gid://shopify/ProductVariant/1", quantity: 1 }] })
+assert.equal(added.updated, true)
+assert.equal(JSON.stringify(added).includes("key=secret"), false)
+assert.equal((await run("get_shopify_cart")).cart !== null, true)
 const shopifyCheckout = await run("prepare_shopify_checkout")
 assert.equal(shopifyCheckout.ready, true)
 assert.equal(shopifyCheckout.requiresUserAction, true)
+const searchCall = shopifyMcpPayloads.find((payload) => (payload.params as { name?: string } | undefined)?.name === "search_catalog") as { params: { arguments: { meta: { "ucp-agent": { profile: string } }; catalog: { context: { address_country: string; language: string; currency: string } } } } }
+assert.equal(searchCall.params.arguments.meta["ucp-agent"].profile, "https://agentready.example/.well-known/ucp-agent.json")
+assert.deepEqual(searchCall.params.arguments.catalog.context, { address_country: "JP", language: "ja", currency: "JPY" })
+const updateCall = shopifyMcpPayloads.find((payload) => (payload.params as { name?: string } | undefined)?.name === "update_cart") as { params: { arguments: { add_items: unknown[]; cart_id?: string } } }
+assert.equal(updateCall.params.arguments.add_items.length, 1)
+assert.equal(updateCall.params.arguments.cart_id, undefined)
+assert.equal(shopifyMcpPayloads.filter((payload) => payload.method === "tools/list").length, 3, "one rate-limit retry plus one cached discovery per endpoint")
+assert.equal(shopifyStandardRateLimits, 2)
 assert.equal((await run("inspect_agentic_offers")).available, true)
 const payment = await run("request_agentic_payment", { offerId: "agentready-creator" })
 assert.equal(payment.paymentRequired, true)
@@ -241,4 +280,35 @@ assert.deepEqual(Object.keys(telemetryPayloads[0]).sort(), ["durationMs", "event
 assert.equal(JSON.stringify(telemetryPayloads).includes("ada@example.com"), false)
 assert.equal(JSON.stringify(telemetryPayloads).includes("What is AgentReady?"), false)
 
-console.log("AgentReady runtime validation passed: 28 tools, forms, chat, Shopify, payments, knowledge, provenance, telemetry, and crawl policy")
+const fallbackConfig: RuntimeConfig = {
+  version: 1,
+  projectName: "GraphQL fallback",
+  generatedAt: "2026-09-03T12:00:00.000Z",
+  capabilities: ["shopifyCommerce"],
+  collections: [],
+  shopify: { storeDomain: "agentready.myshopify.com", connectionMode: "graphql", publicAccessToken: "public-demo-token", apiVersion: "2026-07" },
+}
+const fallbackHtml = buildWebMcpCustomCode(fallbackConfig)
+const fallbackSource = fallbackHtml.replace(/^<script id="agentready-webmcp">\n/, "").replace(/\n<\/script>$/, "")
+const fallbackDom = new JSDOM("<!doctype html><html><body></body></html>", { url: "https://fallback.example/", runScripts: "outside-only" })
+const fallbackTools = new Map<string, RegisteredTool>()
+Object.defineProperty(fallbackDom.window.document, "modelContext", { value: { registerTool(tool: RegisteredTool) { fallbackTools.set(tool.name, tool) } } })
+Object.defineProperty(fallbackDom.window, "fetch", { value: async (_url: string, init?: { body?: string; headers?: Record<string, string> }) => {
+  assert.equal(init?.headers?.["X-Shopify-Storefront-Access-Token"], "public-demo-token")
+  const { query } = JSON.parse(init?.body ?? "{}") as { query: string }
+  let data: Record<string, unknown>
+  if (query.includes("AgentReadyProducts")) data = { products: { nodes: [{ id: "gid://shopify/Product/1", title: "Agent Kit", variants: { nodes: [] } }] } }
+  else if (query.includes("AgentReadyCartCreate")) data = { cartCreate: { cart: shopifyCart, userErrors: [] } }
+  else data = { cart: shopifyCart }
+  return { ok: true, status: 200, headers: { get: () => null }, json: async () => ({ data }) }
+} })
+fallbackDom.window.eval(fallbackSource)
+assert.equal(fallbackTools.size, 7)
+const runFallback = (name: string, input: Record<string, unknown> = {}) => fallbackTools.get(name)!.execute(input)
+assert.equal((await runFallback("search_shopify_catalog", { query: "agent" })).transport, "graphql-fallback")
+assert.equal((await runFallback("update_shopify_cart", { lines: [{ merchandiseId: "gid://shopify/ProductVariant/1", quantity: 1 }] })).updated, true)
+assert.equal((await runFallback("get_shopify_cart")).transport, "graphql-fallback")
+assert.equal((await runFallback("prepare_shopify_checkout")).ready, true)
+
+assert.equal(registered.size, 30)
+console.log("AgentReady runtime validation passed: 30 tools, native Shopify MCP/UCP, GraphQL fallback, forms, chat, payments, knowledge, provenance, telemetry, and crawl policy")

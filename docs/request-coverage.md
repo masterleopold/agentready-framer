@@ -34,7 +34,7 @@ This is the implementation audit against the product requirements for AgentReady
 
 | Requirement | Status | Evidence / boundary |
 | --- | --- | --- |
-| Shopify catalog, cart, order preparation, and checkout | Implemented with external setup | Storefront search; cart create/read/update; buyer, discount, note, quantity; secure Shopify Checkout handoff. Store domain/token and products are required |
+| Shopify catalog, cart, order preparation, and checkout | Implemented with external setup | Official Storefront MCP/UCP discovery; localized catalog search; batch product/variant lookup; interactive option narrowing; merchant policies/FAQ; cart create/read/update; secure Shopify Checkout handoff; automatic GraphQL fallback. A `.myshopify.com` domain and products are required; a public token is only needed where GraphQL fallback is restricted |
 | Credit-card and payment form support | Safe preparation implemented | contact, address, shipping, coupon, plan, and quantity can be prepared; PAN/CVV/bank credentials and final payment stay human-only |
 | Cloudflare Agentic Payments | Implemented with external setup | Three MPP offers, HTTP 402 challenges, receipt exposure, abortable calls. Worker URL and payment secrets are required |
 | Cloudflare Pay Per Crawl | Implemented with external setup | price/purpose discovery, `crawler-*` headers, structured JSON response, schema, digest, license, and provenance. An enrolled Cloudflare zone is required for enforcement/billing |
@@ -55,14 +55,14 @@ This is the implementation audit against the product requirements for AgentReady
 - Hidden Framer breakpoint duplicates and inactive steps are excluded.
 - Async network and chat operations accept the WebMCP execution cancellation signal.
 - Sensitive values are never returned, filled, persisted, or placed in tool arguments.
-- Isolated tests exercise all 28 optional tools; live tests execute the runtime installed in Framer Custom Code.
+- Isolated tests exercise all 30 optional tools; live tests execute the runtime installed in Framer Custom Code.
 - CI verifies the plugin, runtime, package, Cloudflare TypeScript, and all four Worker bundles.
 
 ## Remaining launch inputs
 
 These are operational dependencies rather than missing product code:
 
-1. Add real Shopify Storefront credentials and AgentReady variants, or a real HTTPS hosted checkout URL with actual terms/refund/privacy pages.
+1. Add a real Shopify `.myshopify.com` domain and AgentReady variants, publish an AgentReady-owned UCP profile URL, test both Storefront MCP endpoints, and provide actual terms/refund/privacy pages. Add a public Storefront token only if GraphQL fallback requires it.
 2. Add Cloudflare MPP secrets, deploy the payment Worker, and configure its public endpoint in the plugin/demo.
 3. Enroll the production zone in Pay Per Crawl, deploy the crawl Worker/route, and replace the example license URL.
 4. Configure Turnstile and R2 if the optional upload handoff is demonstrated.

@@ -49,6 +49,8 @@ export interface RuntimeConfig {
   collections: CmsCollectionSnapshot[]
   shopify?: {
     storeDomain: string
+    connectionMode?: "auto" | "mcp" | "graphql"
+    agentProfile?: string
     publicAccessToken?: string
     apiVersion: string
   }

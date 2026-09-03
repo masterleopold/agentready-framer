@@ -10,7 +10,7 @@ AgentReady scans a Framer project, suggests useful agent capabilities, and insta
 
 Browser agents normally have to infer intent from pixels and DOM structure. WebMCP lets a website expose explicit, typed tools through `document.modelContext.registerTool()`. AgentReady makes that workflow accessible to Framer designers.
 
-The complete configured runtime can publish 28 focused tools:
+The complete configured runtime can publish 30 focused tools:
 
 - `search_site` — search visible headings, text, and links
 - `search_collection` — search serialized Framer CMS content
@@ -19,7 +19,7 @@ The complete configured runtime can publish 28 focused tools:
 - advanced forms — inspect and prepare text, address, options, dates, multi-step flows, and secure file-picker handoff
 - conversation — read chatbot replies, compose a turn, and optionally send/wait
 - safe checkout — prepare non-sensitive order details while keeping credentials and final confirmation human-only
-- Shopify Storefront — search products, manage cart state, and hand off to Shopify Checkout
+- Shopify Storefront MCP + UCP — localized catalog search, batch lookup, interactive variant selection, merchant policy answers, cart management, and Shopify Checkout handoff; Storefront GraphQL remains an automatic fallback
 - Cloudflare Agentic Payments — discover paid offers and expose MPP HTTP 402 challenges and receipts
 - Cloudflare Pay Per Crawl — publish price, permitted purposes, evidence guidance, and a paid structured JSON representation of Framer content
 - Cloudflare intelligence — search and answer from AI Search with citations, attest same-origin content, record anonymous tool metrics, and verify deployments with Browser Run
@@ -73,7 +73,7 @@ npm run typecheck --prefix cloudflare
 AGENTREADY_DEMO_URL=https://make-aspects-824660.framer.app/agent-ready npm run test:live
 ```
 
-The live test fetches the actual Framer HTML and executes installed Custom Code with a WebMCP-compatible model context. The isolated suite covers all 28 optional tools.
+The live test fetches the actual Framer HTML and executes installed Custom Code with a WebMCP-compatible model context. The isolated suite covers all 30 optional tools.
 
 ## Testing WebMCP
 
@@ -86,6 +86,12 @@ The live test fetches the actual Framer HTML and executes installed Custom Code 
 
 The ChatGPT built-in browser currently discovers imperative tools registered by top-level page JavaScript. AgentReady intentionally does not rely on declarative form tools or iframe registration.
 
+## Shopify connection
+
+Shopify **Auto** mode discovers the standard Storefront MCP tools at `/api/mcp` and the UCP catalog tools at `/api/ucp/mcp`, caches each advertised schema for five minutes, and adapts cart line arguments to the discovered `update_cart` schema. UCP requests include the configured HTTPS agent profile. If a store restricts MCP, product and cart operations fall back to Storefront GraphQL; authoritative policy search and UCP-only behavior report themselves unavailable instead of inventing an answer.
+
+The default profile URL is Shopify's development example and should be replaced with an AgentReady-owned profile before production. Using these endpoints is subject to Shopify's API terms. See the official [Storefront MCP server documentation](https://shopify.dev/docs/apps/build/storefront-mcp/servers/storefront), [UCP catalog MCP binding](https://ucp.dev/latest/specification/shopping/catalog/mcp/), and [Shopify API License and Terms of Use](https://www.shopify.com/legal/api-terms).
+
 ## Safety choices
 
 - Form filling and form submission are separate capabilities.
@@ -95,6 +101,7 @@ The ChatGPT built-in browser currently discovers imperative tools registered by 
 - Generated inputs use narrow JSON Schemas and reject extra properties.
 - Payment and authentication secrets are never read, returned, or filled.
 - Shopify cart IDs stay in browser session storage and are summarized without their secret key.
+- Shopify MCP tools are discovered per store, UCP calls include an HTTPS agent profile, and catalog context is restricted to non-identifying localization and intent hints.
 - Cloudflare payment private keys stay in the paying Agent/Worker, never in Framer Custom Code.
 
 ## Current limitations
@@ -105,6 +112,7 @@ The ChatGPT built-in browser currently discovers imperative tools registered by 
 - WebMCP remains experimental and browser support varies.
 - A WebMCP host must be MPP/x402-aware to fulfill an agentic payment automatically; other hosts can still inspect the challenge and use a human payment handoff.
 - A real AgentReady purchase requires a configured Shopify product or HTTPS checkout URL; the repository does not ship merchant credentials or silently simulate a completed payment.
+- Shopify Storefront MCP access can be restricted by an individual store. Auto mode falls back to the Storefront GraphQL API; policy search and full UCP semantics require native MCP access.
 - Cloudflare billing enforcement requires an enrolled zone and deployed Workers. Local/demo configuration only proves the protocol surface.
 
 ## Demo status
