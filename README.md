@@ -8,6 +8,8 @@
 
 **Live demo:** [agentready.framer.website](https://agentready.framer.website)
 
+**Live Shopify product:** [AgentReady — WebMCP Builder for Framer](https://tkigey-1f.myshopify.com/products/agentready-webmcp-builder-for-framer) — Creator ¥7,500, Studio ¥22,500, and Agency ¥60,000. The demo routes the selected variant into Shopify's hosted cart; payment remains an explicit human action.
+
 ![AgentReady running as a development plugin inside Framer](docs/framer-plugin-live.jpg)
 
 ## What it does
@@ -26,7 +28,7 @@ Browser agents normally infer intent from pixels and DOM structure. WebMCP lets 
 | Cloudflare Pay Per Crawl | Advertise pricing and permitted purposes and serve licensed structured JSON with a content digest | Cloudflare performs crawler identity, enforcement, settlement, and charge evidence |
 | Knowledge and trust | Cloudflare AI Search, cited answers, same-origin SHA-256 attestations, anonymous metrics, and Browser Run verification | Retrieved content is untrusted; administration and secrets stay server-side |
 
-The complete Direct runtime contains **30 optional tools**. A site only publishes the capabilities its owner enables, so counts vary by configuration. As of **September 4, 2026**, the public Framer demo exposes **23 live browser tools**: all local capabilities plus deployed Cloudflare Agentic Payments and Intelligence Workers. The remaining seven Shopify commerce tools require a real `.myshopify.com` store connection. The public runtime is checked end to end by `npm run test:live`.
+The complete Direct runtime contains **30 optional tools**. A site only publishes the capabilities its owner enables, so counts vary by configuration. As of **September 4, 2026**, the public Framer demo exposes **all 30 browser tools**, including seven Shopify commerce tools connected to `tkigey-1f.myshopify.com`, plus deployed Cloudflare Agentic Payments and Intelligence Workers. The public runtime is checked end to end by `npm run test:live`.
 
 The exact inventory and boundaries are documented in [docs/capability-matrix.md](docs/capability-matrix.md).
 
@@ -121,7 +123,9 @@ Detailed provisioning, secrets, routes, and production caveats are in [cloudflar
 
 **Auto** mode discovers Shopify's standard Storefront MCP tools at `/api/mcp` and UCP catalog tools at `/api/ucp/mcp`, caches their advertised schemas for five minutes, and adapts cart arguments to the store's discovered `update_cart` schema. UCP requests include the configured HTTPS agent profile.
 
-If a store restricts MCP, catalog and cart operations fall back to Storefront GraphQL. Merchant policy answers and complete UCP behavior explicitly report themselves unavailable rather than inventing results. Replace Shopify's development-example agent profile URL with an AgentReady-owned HTTPS profile before production.
+For browser deployments, configure the optional standard MCP proxy when Shopify's `/api/mcp` preflight is blocked by CORS. The included Cloudflare Intelligence Worker exposes `/v1/shopify/mcp`, fixes the destination to the configured `.myshopify.com` store, allows only policy and cart tools, forwards no caller credentials, and serves the AgentReady UCP profile at `/.well-known/ucp-agent.json`.
+
+If a store restricts MCP, catalog and cart operations fall back to Storefront GraphQL. Merchant policy answers and complete UCP behavior explicitly report themselves unavailable rather than inventing results. The live demo uses the AgentReady-owned profile above, and its product is discoverable through Shopify's native UCP catalog with all three license variants.
 
 References: [Shopify Storefront MCP](https://shopify.dev/docs/apps/build/storefront-mcp/servers/storefront), [UCP catalog MCP binding](https://ucp.dev/latest/specification/shopping/catalog/mcp/), and [Shopify API terms](https://www.shopify.com/legal/api-terms).
 

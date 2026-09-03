@@ -36,7 +36,7 @@ This is the implementation audit against the product requirements for AgentReady
 
 | Requirement | Status | Evidence / boundary |
 | --- | --- | --- |
-| Shopify catalog, cart, order preparation, and checkout | Implemented; demo connection pending | Official Storefront MCP/UCP discovery; localized catalog search; batch product/variant lookup; interactive option narrowing; merchant policies/FAQ; cart create/read/update; secure Shopify Checkout handoff; automatic GraphQL fallback. The seven Shopify tools require a real `.myshopify.com` demo store; they are not counted as live until that store is connected |
+| Shopify catalog, cart, order preparation, and checkout | Implemented and connected in the live demo | Official Storefront MCP/UCP discovery against `tkigey-1f.myshopify.com`; localized catalog search; batch product/variant lookup; interactive option narrowing; merchant policies/FAQ; cart create/read/update; secure Shopify Checkout handoff; browser-safe Cloudflare proxy for standard MCP; automatic GraphQL fallback. All seven Shopify tools are counted in the live 30-tool runtime |
 | Credit-card and payment form support | Safe preparation implemented | contact, address, shipping, coupon, plan, and quantity can be prepared; PAN/CVV/bank credentials and final payment stay human-only |
 | Cloudflare Agentic Payments | Implemented with external setup | Three one-time MPP offers, HTTP 402 challenge/retry instructions, unique verified order and entitlement IDs, no-store responses, receipt evidence, and abortable calls. Worker URL, recipient, currency, signing secret, and reviewed testnet/mainnet selection are required |
 | Cloudflare Pay Per Crawl | Implemented with external setup | price/purpose discovery, `crawler-*` headers, structured JSON response, schema, digest, license, and provenance. An enrolled Cloudflare zone is required for enforcement/billing |
@@ -71,7 +71,7 @@ This is the implementation audit against the product requirements for AgentReady
 
 These are operational dependencies rather than missing product code:
 
-1. Add a real Shopify `.myshopify.com` domain and AgentReady variants, publish an AgentReady-owned UCP profile URL, test both Storefront MCP endpoints, and provide actual terms/refund/privacy pages. Add a public Storefront token only if GraphQL fallback requires it.
+1. Add reviewed terms/refund/privacy pages to the connected Shopify store. The active AgentReady product and its Creator, Studio, and Agency variants are public and discoverable through Shopify's native UCP catalog as well as tokenless Storefront GraphQL fallback; a public Storefront token is only needed if that fallback stops working.
 2. Add Cloudflare MPP secrets, deploy the payment Worker, and configure its public endpoint in the plugin/demo.
 3. Enroll the production zone in Pay Per Crawl, deploy the crawl Worker/route, and replace the example license URL.
 4. Configure Turnstile and R2 if the optional upload handoff is demonstrated.

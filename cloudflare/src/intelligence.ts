@@ -5,6 +5,7 @@ interface Env {
   ALLOWED_ORIGINS: string
   AI_SEARCH_INSTANCE: string
   CONTENT_LICENSE_URL: string
+  SHOPIFY_STORE_DOMAIN?: string
   AI_GATEWAY_URL?: string
   AI_GATEWAY_TOKEN?: string
   AI_GATEWAY_MODEL?: string
@@ -12,6 +13,35 @@ interface Env {
 }
 
 type SnapshotPayload = BrowserRunSnapshotSuccessResponse | BrowserRunErrorResponse
+
+const UCP_AGENT_PROFILE = {
+  ucp: {
+    version: "2026-08-25",
+    services: {
+      "dev.ucp.shopping": [{
+        version: "2026-08-25",
+        spec: "https://ucp.dev/2026-08-25/specification/overview",
+        transport: "mcp",
+        schema: "https://ucp.dev/2026-08-25/services/shopping/mcp.openrpc.json",
+      }],
+    },
+    capabilities: {
+      "dev.ucp.shopping.catalog.search": [{ version: "2026-08-25" }],
+      "dev.ucp.shopping.catalog.lookup": [{ version: "2026-08-25" }],
+      "dev.ucp.shopping.cart": [{ version: "2026-08-25" }],
+      "dev.ucp.shopping.checkout": [{ version: "2026-08-25" }],
+      "dev.shopify.catalog": [{
+        version: "2026-08-25",
+        spec: "https://shopify.dev/docs/agents/catalog/storefront-catalog",
+        schema: "https://shopify.dev/ucp/schemas/2026-08-25/shopify_catalog.json",
+        extends: ["dev.ucp.shopping.catalog.lookup", "dev.ucp.shopping.catalog.search"],
+      }],
+    },
+    payment_handlers: {},
+  },
+}
+
+const SHOPIFY_STANDARD_TOOLS = new Set(["search_shop_policies_and_faqs", "get_cart", "update_cart"])
 
 const json = (body: unknown, status = 200, headers: HeadersInit = {}) => new Response(JSON.stringify(body), {
   status,
@@ -48,6 +78,34 @@ async function body<T>(request: Request, maximumBytes = 16_384): Promise<T> {
 
 const cleanText = (value: unknown, maximum: number) => typeof value === "string" ? value.trim().slice(0, maximum) : ""
 const toolPattern = /^[a-z][a-z0-9_]{0,63}$/
+
+function shopifyStoreDomain(env: Env) {
+  const domain = (env.SHOPIFY_STORE_DOMAIN ?? "").trim().replace(/^https?:\/\//, "").replace(/\/$/, "")
+  return /^[a-z0-9][a-z0-9-]*\.myshopify\.com$/i.test(domain) ? domain : ""
+}
+
+async function proxyShopifyMcp(request: Request, env: Env, origin: string) {
+  const domain = shopifyStoreDomain(env)
+  if (!domain) return json({ error: "Shopify Storefront MCP is not configured" }, 503, cors(origin))
+  const payload = await body<{ method?: unknown; params?: { name?: unknown } }>(request)
+  const method = cleanText(payload.method, 40)
+  if (!["initialize", "tools/list", "tools/call"].includes(method)) return json({ error: "Unsupported MCP method" }, 400, cors(origin))
+  if (method === "tools/call" && !SHOPIFY_STANDARD_TOOLS.has(cleanText(payload.params?.name, 80))) return json({ error: "Shopify tool is not allowlisted" }, 403, cors(origin))
+  const response = await fetch(`https://${domain}/api/mcp`, {
+    method: "POST",
+    headers: { "content-type": "application/json", accept: "application/json, text/event-stream" },
+    body: JSON.stringify(payload),
+  })
+  return new Response(await response.arrayBuffer(), {
+    status: response.status,
+    headers: {
+      ...cors(origin),
+      "content-type": response.headers.get("content-type") ?? "application/json; charset=utf-8",
+      "cache-control": "no-store",
+      "x-agentready-shopify-proxy": "standard-mcp",
+    },
+  })
+}
 
 async function shortHash(value: string) {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value))
@@ -206,16 +264,18 @@ async function syncKnowledge(request: Request, env: Env, origin: string) {
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
+    const path = new URL(request.url).pathname
+    if (request.method === "GET" && path === "/.well-known/ucp-agent.json") return json(UCP_AGENT_PROFILE, 200, { "access-control-allow-origin": "*", "cache-control": "public, max-age=3600" })
     const origin = requestOrigin(request, env)
     if (request.method === "OPTIONS") return new Response(null, { status: origin ? 204 : 403, headers: cors(origin) })
     const administrator = isAdministrator(request, env)
     if (!origin && !administrator) return json({ error: "Origin not allowed" }, 403)
-    const path = new URL(request.url).pathname
     try {
       if (request.method === "GET" && path === "/v1/status") return json({ ready: true, aiSearch: env.AI_SEARCH_INSTANCE, browserRun: true, analytics: Boolean(env.ANALYTICS), aiGateway: Boolean(env.AI_GATEWAY_URL) }, 200, cors(origin))
       if (request.method === "POST" && path === "/v1/knowledge/search") return searchKnowledge(request, env, origin)
       if (request.method === "POST" && path === "/v1/knowledge/answer") return answerKnowledge(request, env, origin)
       if (request.method === "POST" && path === "/v1/provenance") return provenance(request, env, origin)
+      if (request.method === "POST" && path === "/v1/shopify/mcp") return proxyShopifyMcp(request, env, origin)
       if (request.method === "POST" && path === "/v1/telemetry") return telemetry(request, env, origin)
       if (request.method === "POST" && path === "/v1/verify") return verifySite(request, env, origin)
       if (request.method === "POST" && path === "/v1/admin/sync") return syncKnowledge(request, env, origin)

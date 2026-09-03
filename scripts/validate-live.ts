@@ -119,6 +119,25 @@ assert.deepEqual([...(fillResult.updated as string[])], ["buyerName", "buyerEmai
 assert.equal(dom.window.document.querySelector<HTMLInputElement>('[name="buyerName"]')?.value, "Demo Agent")
 assert.equal(dom.window.document.querySelector<HTMLInputElement>('[name="buyerEmail"]')?.value, "agent@example.com")
 
+const searchShopify = tools.find((tool) => tool.name === "search_shopify_catalog")
+assert(searchShopify)
+const shopifyResult = await searchShopify.execute({ query: "AgentReady", limit: 5, context: { addressCountry: "JP", language: "en", currency: "JPY" } })
+if (shopifyResult.outcome === "truncated") {
+  assert.equal(shopifyResult.retryable, true)
+  assert.match(String(shopifyResult.preview), /"transport":"ucp"/, "The live catalog did not use Shopify UCP.")
+} else {
+  assert.equal(shopifyResult.transport, "ucp", "The live product should use Shopify's native UCP catalog.")
+}
+const ucpResponse = await fetch("https://tkigey-1f.myshopify.com/api/ucp/mcp", {
+  method: "POST",
+  headers: { "content-type": "application/json" },
+  body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "search_catalog", arguments: { meta: { "ucp-agent": { profile: "https://agentready-intelligence.hara-7b1.workers.dev/.well-known/ucp-agent.json" } }, catalog: { query: "AgentReady", context: { address_country: "JP", language: "en", currency: "JPY" }, pagination: { limit: 5 } } } } }),
+})
+assert.equal(ucpResponse.status, 200)
+const ucpPayload = await ucpResponse.json() as { result?: { structuredContent?: { products?: Array<{ title?: string; variants?: unknown[] }> } } }
+const ucpProducts = ucpPayload.result?.structuredContent?.products ?? []
+assert.ok(ucpProducts.some((product) => product.title?.includes("AgentReady") && product.variants?.length === 3), "Shopify UCP did not return the live AgentReady product and its three variants.")
+
 console.log(`AgentReady live validation passed: ${demoUrl}`)
 if (installations.length > 1) console.warn(`Warning: ${installations.length} AgentReady Custom Code entries detected; validated the newest one. Remove duplicate plugin identities and rerun with AGENTREADY_STRICT_INSTALLATION=1.`)
 console.log(`Registered tools: ${names.join(", ")}`)

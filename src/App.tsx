@@ -96,6 +96,7 @@ export function App() {
   const [shopifyDomain, setShopifyDomain] = useState("")
   const [shopifyMode, setShopifyMode] = useState<"auto" | "mcp" | "graphql">("auto")
   const [shopifyAgentProfile, setShopifyAgentProfile] = useState("https://shopify.dev/ucp/agent-profiles/examples/2026-08-25/valid-with-capabilities.json")
+  const [shopifyProxyEndpoint, setShopifyProxyEndpoint] = useState("")
   const [shopifyToken, setShopifyToken] = useState("")
   const [shopifyConnection, setShopifyConnection] = useState<{ state: "idle" | "testing" | "ready" | "error"; message: string }>({ state: "idle", message: "" })
   const [paymentEndpoint, setPaymentEndpoint] = useState("")
@@ -154,6 +155,7 @@ export function App() {
           shopifyDomain: string
           shopifyMode: "auto" | "mcp" | "graphql"
           shopifyAgentProfile: string
+          shopifyProxyEndpoint: string
           shopifyToken: string
           paymentEndpoint: string
           intelligenceEndpoint: string
@@ -182,6 +184,7 @@ export function App() {
           setShopifyDomain(installedConfig.shopify.storeDomain)
           setShopifyMode(installedConfig.shopify.connectionMode ?? "auto")
           if (installedConfig.shopify.agentProfile) setShopifyAgentProfile(installedConfig.shopify.agentProfile)
+          if (installedConfig.shopify.standardMcpProxyEndpoint) setShopifyProxyEndpoint(installedConfig.shopify.standardMcpProxyEndpoint)
           if (installedConfig.shopify.publicAccessToken) setShopifyToken(installedConfig.shopify.publicAccessToken)
         }
         if (installedConfig?.cloudflarePayments) setPaymentEndpoint(installedConfig.cloudflarePayments.endpoint)
@@ -196,6 +199,7 @@ export function App() {
         if (typeof parsed.shopifyDomain === "string") setShopifyDomain(parsed.shopifyDomain)
         if (["auto", "mcp", "graphql"].includes(parsed.shopifyMode ?? "")) setShopifyMode(parsed.shopifyMode as "auto" | "mcp" | "graphql")
         if (typeof parsed.shopifyAgentProfile === "string") setShopifyAgentProfile(parsed.shopifyAgentProfile)
+        if (typeof parsed.shopifyProxyEndpoint === "string") setShopifyProxyEndpoint(parsed.shopifyProxyEndpoint)
         if (typeof parsed.shopifyToken === "string") setShopifyToken(parsed.shopifyToken)
         if (typeof parsed.paymentEndpoint === "string") setPaymentEndpoint(parsed.paymentEndpoint)
         if (typeof parsed.intelligenceEndpoint === "string") setIntelligenceEndpoint(parsed.intelligenceEndpoint)
@@ -215,13 +219,14 @@ export function App() {
   useEffect(() => {
     if (!settingsLoaded || !canSaveSettings) return
     const timeout = window.setTimeout(() => {
-      void framer.setPluginData(SETTINGS_KEY, JSON.stringify({ enabled, shopifyDomain, shopifyMode, shopifyAgentProfile, shopifyToken, paymentEndpoint, intelligenceEndpoint, telemetryEnabled, crawlPrice, allowAiTraining, deliveryMode, mcpPath, contentCredentials, originTrialToken }))
+      void framer.setPluginData(SETTINGS_KEY, JSON.stringify({ enabled, shopifyDomain, shopifyMode, shopifyAgentProfile, shopifyProxyEndpoint, shopifyToken, paymentEndpoint, intelligenceEndpoint, telemetryEnabled, crawlPrice, allowAiTraining, deliveryMode, mcpPath, contentCredentials, originTrialToken }))
     }, 250)
     return () => window.clearTimeout(timeout)
-  }, [allowAiTraining, canSaveSettings, contentCredentials, crawlPrice, deliveryMode, enabled, intelligenceEndpoint, mcpPath, originTrialToken, paymentEndpoint, settingsLoaded, shopifyAgentProfile, shopifyDomain, shopifyMode, shopifyToken, telemetryEnabled])
+  }, [allowAiTraining, canSaveSettings, contentCredentials, crawlPrice, deliveryMode, enabled, intelligenceEndpoint, mcpPath, originTrialToken, paymentEndpoint, settingsLoaded, shopifyAgentProfile, shopifyDomain, shopifyMode, shopifyProxyEndpoint, shopifyToken, telemetryEnabled])
 
   const validShopifyDomain = /^[a-z0-9][a-z0-9-]*\.myshopify\.com$/i.test(shopifyDomain.trim().replace(/^https?:\/\//, "").replace(/\/$/, ""))
   const validShopifyAgentProfile = /^https:\/\/[a-z0-9.-]+(?::\d+)?(?:\/.*)?$/i.test(shopifyAgentProfile.trim())
+  const validShopifyProxyEndpoint = !shopifyProxyEndpoint.trim() || /^https:\/\/[a-z0-9.-]+(?::\d+)?(?:\/.*)?$/i.test(shopifyProxyEndpoint.trim())
   const validPaymentEndpoint = /^https:\/\/[a-z0-9.-]+(?::\d+)?(?:\/.*)?$/i.test(paymentEndpoint.trim())
   const validIntelligenceEndpoint = /^https:\/\/[a-z0-9.-]+(?::\d+)?(?:\/.*)?$/i.test(intelligenceEndpoint.trim())
   const validCrawlPrice = /^\d+(?:\.\d{1,6})?$/.test(crawlPrice) && Number(crawlPrice) > 0
@@ -242,7 +247,8 @@ export function App() {
         return
       }
       const discover = async (path: string) => {
-        const response = await fetch(`https://${storeDomain}${path}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list", params: {} }) })
+        const endpoint = path === "/api/mcp" && shopifyProxyEndpoint.trim() ? shopifyProxyEndpoint.trim().replace(/\/$/, "") : `https://${storeDomain}${path}`
+        const response = await fetch(endpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list", params: {} }) })
         const payload = await response.json() as { result?: { tools?: Array<{ name?: string }> }; error?: { message?: string } }
         if (!response.ok || payload.error) throw new Error(payload.error?.message || `${path} returned ${response.status}`)
         return payload.result?.tools?.map((tool) => tool.name).filter(Boolean) ?? []
@@ -291,6 +297,7 @@ export function App() {
           storeDomain,
           connectionMode: shopifyMode,
           agentProfile: validShopifyAgentProfile ? shopifyAgentProfile.trim() : undefined,
+          standardMcpProxyEndpoint: validShopifyProxyEndpoint ? shopifyProxyEndpoint.trim().replace(/\/$/, "") || undefined : undefined,
           publicAccessToken: shopifyMode !== "mcp" ? shopifyToken.trim() || undefined : undefined,
           apiVersion: "2026-07",
         } : undefined,
@@ -403,10 +410,11 @@ export function App() {
             <option value="graphql">Storefront GraphQL only</option>
           </select>
           {shopifyMode !== "graphql" && <input value={shopifyAgentProfile} onChange={(event) => setShopifyAgentProfile(event.target.value)} placeholder="https://…/ucp-agent.json" aria-label="UCP agent profile URL" />}
+          {shopifyMode !== "graphql" && <input value={shopifyProxyEndpoint} onChange={(event) => setShopifyProxyEndpoint(event.target.value)} placeholder="Optional browser-safe standard MCP proxy" aria-label="Shopify standard MCP proxy endpoint" />}
           {shopifyMode !== "mcp" && <input value={shopifyToken} onChange={(event) => setShopifyToken(event.target.value)} placeholder="Public Storefront token · fallback only" aria-label="Shopify public Storefront token" />}
-          <button type="button" className="integration-test" disabled={!validShopifyDomain || shopifyConnection.state === "testing" || (shopifyMode !== "graphql" && !validShopifyAgentProfile)} onClick={() => void testShopifyConnection()}>{shopifyConnection.state === "testing" ? "Testing…" : "Test Shopify connection"}</button>
+          <button type="button" className="integration-test" disabled={!validShopifyDomain || !validShopifyProxyEndpoint || shopifyConnection.state === "testing" || (shopifyMode !== "graphql" && !validShopifyAgentProfile)} onClick={() => void testShopifyConnection()}>{shopifyConnection.state === "testing" ? "Testing…" : "Test Shopify connection"}</button>
           {shopifyConnection.message && <p className={shopifyConnection.state === "error" ? "connection-error" : "connection-result"}>{shopifyConnection.message}</p>}
-          <p>{validShopifyDomain && (shopifyMode === "graphql" || validShopifyAgentProfile) ? "Ready · 7 tools, native MCP/UCP discovery, safe hosted checkout." : "Enter a .myshopify.com domain and HTTPS UCP profile URL."}</p>
+          <p>{validShopifyDomain && validShopifyProxyEndpoint && (shopifyMode === "graphql" || validShopifyAgentProfile) ? "Ready · 7 tools, native MCP/UCP discovery, safe hosted checkout." : "Enter a .myshopify.com domain, HTTPS UCP profile, and optional valid HTTPS proxy."}</p>
         </div>}
         {enabled.includes("agenticPayments") && <div className="integration-settings">
           <div className="section-label">CLOUDFLARE AGENTIC PAYMENTS</div>

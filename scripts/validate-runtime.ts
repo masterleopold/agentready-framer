@@ -26,7 +26,7 @@ const config: RuntimeConfig = {
     fields: [{ id: "name", name: "Name", type: "string" }],
     items: [{ slug: "agent-kit", draft: false, fields: { Name: "Agent Kit" } }],
   }],
-  shopify: { storeDomain: "agentready.myshopify.com", connectionMode: "auto", agentProfile: "https://agentready.example/.well-known/ucp-agent.json", publicAccessToken: "public-demo-token", apiVersion: "2026-07" },
+  shopify: { storeDomain: "agentready.myshopify.com", connectionMode: "auto", agentProfile: "https://agentready.example/.well-known/ucp-agent.json", standardMcpProxyEndpoint: "https://agentready-intelligence.workers.dev/v1/shopify/mcp", publicAccessToken: "public-demo-token", apiVersion: "2026-07" },
   cloudflarePayments: { endpoint: "https://agentready-payments.workers.dev" },
   cloudflareIntelligence: { endpoint: "https://agentready-intelligence.workers.dev", telemetry: true },
   crawlMonetization: { currency: "USD", pricePerRequest: "0.01", purposes: { search: true, aiInput: true, aiTrain: false }, contentUse: "reference" },
@@ -162,7 +162,7 @@ Object.defineProperty(dom.window, "fetch", { value: async (url: string, init?: {
     ok: true, status: 200, headers: { get: () => null },
     json: async () => ({ offers: [{ id: "agentready-creator", amount: "49" }] }),
   }
-  if (url.includes("agentready.myshopify.com/api/mcp") || url.includes("agentready.myshopify.com/api/ucp/mcp")) {
+  if (url.includes("agentready.myshopify.com/api/mcp") || url.includes("agentready.myshopify.com/api/ucp/mcp") || url.includes("agentready-intelligence.workers.dev/v1/shopify/mcp")) {
     const payload = JSON.parse(init?.body ?? "{}") as { method: string; params?: { name?: string; arguments?: Record<string, unknown> } }
     shopifyMcpPayloads.push(payload as unknown as Record<string, unknown>)
     const ucp = url.includes("/api/ucp/mcp")
@@ -178,7 +178,7 @@ Object.defineProperty(dom.window, "fetch", { value: async (url: string, init?: {
     }
     const name = payload.params?.name
     let result: Record<string, unknown>
-    if (name === "search_catalog") result = { ucp: { version: "2026-08-25" }, products: [{ id: "gid://shopify/Product/1", title: "Agent Kit", variants: [{ id: "gid://shopify/ProductVariant/1", title: "Default", price: { amount: 2900, currency: "USD" } }] }] }
+    if (name === "search_catalog") result = (payload.params?.arguments as { catalog?: { query?: string } } | undefined)?.catalog?.query === "empty" ? { ucp: { version: "2026-08-25" }, products: [] } : { ucp: { version: "2026-08-25" }, products: [{ id: "gid://shopify/Product/1", title: "Agent Kit", variants: [{ id: "gid://shopify/ProductVariant/1", title: "Default", price: { amount: 2900, currency: "USD" } }] }] }
     else if (name === "lookup_catalog" || name === "get_product") result = { product: { id: "gid://shopify/Product/1", title: "Agent Kit", variants: [{ id: "gid://shopify/ProductVariant/1" }] } }
     else if (name === "search_shop_policies_and_faqs") result = { answer: "Returns are accepted within 30 days." }
     else result = { cart_id: "gid://shopify/Cart/demo?key=secret", checkout_url: "https://agentready.myshopify.com/checkouts/demo", total_quantity: 1, line_items: [{ id: "gid://shopify/CartLine/1", quantity: 1 }] }
@@ -299,6 +299,7 @@ assert.equal((sent.newMessages as ConversationMessage[]).at(-1)?.role, "assistan
 
 const products = await run("search_shopify_catalog", { query: "agent", limit: 5, context: { addressCountry: "jp", language: "ja", currency: "jpy" } })
 assert.equal(products.transport, "ucp")
+assert.equal((await run("search_shopify_catalog", { query: "empty" })).transport, "graphql-fallback", "empty UCP eligibility results must fall back to the public Storefront catalog")
 assert.equal((await run("lookup_shopify_catalog", { ids: ["gid://shopify/Product/1"] })).transport, "ucp")
 assert.equal((await run("get_shopify_product", { id: "gid://shopify/Product/1", selected: [{ name: "Color", label: "Blue" }] })).transport, "ucp")
 assert.equal((await run("search_shopify_policies", { query: "Returns?" })).sourcePolicy, "merchant-only")

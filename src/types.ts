@@ -56,6 +56,7 @@ export interface RuntimeConfig {
     storeDomain: string
     connectionMode?: "auto" | "mcp" | "graphql"
     agentProfile?: string
+    standardMcpProxyEndpoint?: string
     publicAccessToken?: string
     apiVersion: string
   }

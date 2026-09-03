@@ -8,6 +8,7 @@
   "vars": {
     "ALLOWED_ORIGINS": "https://agentready.framer.website",
     "AI_SEARCH_INSTANCE": "agentready-site",
+    "SHOPIFY_STORE_DOMAIN": "tkigey-1f.myshopify.com",
     "CONTENT_LICENSE_URL": "https://agentready.framer.website/terms"
   },
   "observability": { "enabled": true }

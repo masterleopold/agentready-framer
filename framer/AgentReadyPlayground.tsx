@@ -64,6 +64,9 @@ interface AgentReadyPlaygroundProps {
   creatorPrice?: string
   studioPrice?: string
   agencyPrice?: string
+  creatorVariantId?: string
+  studioVariantId?: string
+  agencyVariantId?: string
   paymentEndpoint?: string
   intelligenceEndpoint?: string
   style?: React.CSSProperties
@@ -73,7 +76,7 @@ interface AgentReadyPlaygroundProps {
  * @framerSupportedLayoutWidth any
  * @framerSupportedLayoutHeight auto
  */
-export default function AgentReadyPlayground({ checkoutUrl = "", creatorPrice = "$49", studioPrice = "$149", agencyPrice = "$399", paymentEndpoint = "", intelligenceEndpoint = "", style }: AgentReadyPlaygroundProps) {
+export default function AgentReadyPlayground({ checkoutUrl = "", creatorPrice = "¥7,500", studioPrice = "¥22,500", agencyPrice = "¥60,000", creatorVariantId = "", studioVariantId = "", agencyVariantId = "", paymentEndpoint = "", intelligenceEndpoint = "", style }: AgentReadyPlaygroundProps) {
   const [step, setStep] = React.useState(1)
   const [messages, setMessages] = React.useState<Message[]>([
     { role: "assistant", text: "Tell me what you are trying to accomplish and I’ll help complete the workflow." },
@@ -110,8 +113,10 @@ export default function AgentReadyPlayground({ checkoutUrl = "", creatorPrice = 
     setLicense(selectedLicense)
     setPurchaseReady(true)
     if (checkoutUrl.startsWith("https://") && typeof window !== "undefined") {
-      const target = new URL(checkoutUrl)
-      target.searchParams.set("license", selectedLicense)
+      const productUrl = new URL(checkoutUrl)
+      const variantId = selectedLicense === "studio" ? studioVariantId : selectedLicense === "agency" ? agencyVariantId : creatorVariantId
+      const target = /^\d+$/.test(variantId) ? new URL(`/cart/${variantId}:1`, productUrl.origin) : productUrl
+      if (!variantId) target.searchParams.set("license", selectedLicense)
       window.location.assign(target.href)
     }
   }
@@ -228,9 +233,12 @@ export default function AgentReadyPlayground({ checkoutUrl = "", creatorPrice = 
 
 addPropertyControls(AgentReadyPlayground, {
   checkoutUrl: { type: ControlType.String, title: "Checkout URL", placeholder: "https://checkout.example.com/agentready" },
-  creatorPrice: { type: ControlType.String, title: "Creator Price", defaultValue: "$49" },
-  studioPrice: { type: ControlType.String, title: "Studio Price", defaultValue: "$149" },
-  agencyPrice: { type: ControlType.String, title: "Agency Price", defaultValue: "$399" },
+  creatorPrice: { type: ControlType.String, title: "Creator Price", defaultValue: "¥7,500" },
+  studioPrice: { type: ControlType.String, title: "Studio Price", defaultValue: "¥22,500" },
+  agencyPrice: { type: ControlType.String, title: "Agency Price", defaultValue: "¥60,000" },
+  creatorVariantId: { type: ControlType.String, title: "Creator Variant ID" },
+  studioVariantId: { type: ControlType.String, title: "Studio Variant ID" },
+  agencyVariantId: { type: ControlType.String, title: "Agency Variant ID" },
   paymentEndpoint: { type: ControlType.String, title: "MPP Worker", placeholder: "https://agentready-payments.workers.dev" },
   intelligenceEndpoint: { type: ControlType.String, title: "AI Search Worker", placeholder: "https://agentready-intelligence.workers.dev" },
 })
