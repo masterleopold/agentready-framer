@@ -4,6 +4,8 @@ Turn a Framer site into an agent-native website without writing WebMCP code.
 
 AgentReady scans a Framer project, suggests useful agent capabilities, and installs an imperative WebMCP runtime into the published site through Framer Custom Code.
 
+**Live demo:** [make-aspects-824660.framer.app/agent-ready](https://make-aspects-824660.framer.app/agent-ready)
+
 ## Why AgentReady
 
 Browser agents normally have to infer intent from pixels and DOM structure. WebMCP lets a website expose explicit, typed tools through `document.modelContext.registerTool()`. AgentReady makes that workflow accessible to Framer designers.
@@ -46,15 +48,22 @@ npm run typecheck
 npm run lint
 npm test
 npm run build
+npm run pack
 ```
 
-`npm test` validates that generated Custom Code is syntactically valid JavaScript and safely escapes inline data.
+`npm test` executes the generated runtime in a simulated browser and validates all tool behaviors. To verify the deployed Framer page end to end:
+
+```bash
+AGENTREADY_DEMO_URL=https://make-aspects-824660.framer.app/agent-ready npm run test:live
+```
+
+The live test fetches the actual Framer HTML, executes the installed Custom Code with a WebMCP-compatible model context, checks all five default tools, searches rendered content, and prefills the real form fields.
 
 ## Testing WebMCP
 
 1. Open the plugin in a Framer website project.
 2. Review the scan results and enabled capabilities.
-3. Select **Publish tools**.
+3. Select **Install tools**.
 4. Publish the Framer site.
 5. Open the live URL in ChatGPT's built-in browser, or in Chrome with WebMCP testing enabled.
 6. Inspect the site's available tools and ask the agent to search content, navigate, or prepare a form.
@@ -76,9 +85,11 @@ The ChatGPT built-in browser currently discovers imperative tools registered by 
 - Site scanning currently covers the active canvas plus project CMS collections.
 - WebMCP remains experimental and browser support varies.
 
-## Project status
+## Demo status
 
-This repository is an early MVP created for the OpenAI WebMCP Challenge. The next planned steps are a tool editor, runtime diagnostics, live agent testing, and usage analytics.
+The Challenge demo is built in Framer through its Server API, includes desktop/tablet/mobile breakpoints, and has the AgentReady runtime installed in Framer Custom Code. The public preview and its registered tool behavior are covered by `npm run test:live`.
+
+See [docs/submission.md](docs/submission.md) for the submission copy, demo prompts, and video outline.
 
 ## License
 

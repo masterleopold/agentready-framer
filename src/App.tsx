@@ -49,18 +49,24 @@ async function scanCollections(): Promise<CmsCollectionSnapshot[]> {
 
 export function App() {
   const canPublish = useIsAllowedTo("setCustomCode")
+  const canDeploy = useIsAllowedTo("publish")
   const [scan, setScan] = useState<SiteScan | null>(null)
   const [enabled, setEnabled] = useState<CapabilityId[]>(DEFAULT_CAPABILITIES)
-  const [status, setStatus] = useState<"idle" | "scanning" | "publishing">("idle")
+  const [status, setStatus] = useState<"idle" | "scanning" | "publishing" | "deploying">("idle")
   const [installed, setInstalled] = useState(false)
   const [disabledByUser, setDisabledByUser] = useState(false)
+  const [publishedUrl, setPublishedUrl] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const refreshInstallStatus = useCallback(async () => {
-    const customCode = await framer.getCustomCode()
+    const [customCode, publishInfo] = await Promise.all([
+      framer.getCustomCode(),
+      framer.getPublishInfo(),
+    ])
     const bodyEnd = customCode.bodyEnd
     setInstalled(Boolean(bodyEnd.html?.includes("agentready-webmcp")))
     setDisabledByUser(bodyEnd.disabled)
+    setPublishedUrl(publishInfo.production?.url ?? publishInfo.staging?.url ?? null)
   }, [])
 
   const runScan = useCallback(async () => {
@@ -108,6 +114,26 @@ export function App() {
     }
   }
 
+  const deploySite = async () => {
+    setStatus("deploying")
+    setError(null)
+    try {
+      const result = await framer.publish()
+      let deployment = result.deployment
+      for (let attempt = 0; attempt < 15 && (deployment.status === "pending" || deployment.status === "optimizing"); attempt += 1) {
+        await new Promise((resolve) => window.setTimeout(resolve, 1000))
+        deployment = await framer.getDeployment(deployment.id)
+      }
+      if (deployment.status === "failed") throw new Error(`Framer publishing failed during ${deployment.failureStage}.`)
+      await refreshInstallStatus()
+      framer.notify(deployment.status === "ready" ? "Site published and ready to test" : "Site publish started", { variant: "success" })
+    } catch (deployError) {
+      setError(deployError instanceof Error ? deployError.message : "Could not publish this Framer site.")
+    } finally {
+      setStatus("idle")
+    }
+  }
+
   return (
     <main>
       <header className="hero">
@@ -143,9 +169,18 @@ export function App() {
 
       {disabledByUser && <div className="notice warning">Custom Code is disabled in Site Settings. Enable it before testing.</div>}
       {error && <div className="notice error">{error}</div>}
+      <section className="diagnostics" aria-label="Readiness checks">
+        <span className={installed ? "pass" : "pending"}>{installed ? "✓" : "1"} Runtime</span>
+        <span className={installed && !disabledByUser ? "pass" : "pending"}>{installed && !disabledByUser ? "✓" : "2"} Enabled</span>
+        <span className={publishedUrl ? "pass" : "pending"}>{publishedUrl ? "✓" : "3"} Live URL</span>
+      </section>
       <footer>
         <div className="publish-summary"><span className={installed ? "ready" : "draft"}>{installed ? "Installed" : "Draft"}</span><span>{toolCount} WebMCP tools</span></div>
-        <button className="publish-button" onClick={() => void publish()} disabled={!canPublish || !scan || effectiveEnabled.length === 0 || status !== "idle"}>{status === "publishing" ? "Publishing…" : installed ? "Update tools" : "Publish tools"}<span>→</span></button>
+        <div className="footer-actions">
+          <button className="publish-button" onClick={() => void publish()} disabled={!canPublish || !scan || effectiveEnabled.length === 0 || status !== "idle"}>{status === "publishing" ? "Installing…" : installed ? "Update tools" : "Install tools"}<span>→</span></button>
+          {installed && <button className="deploy-button" onClick={() => void deploySite()} disabled={!canDeploy || disabledByUser || status !== "idle"}>{status === "deploying" ? "Publishing site…" : "Publish site"}</button>}
+          {publishedUrl && <a className="live-link" href={publishedUrl} target="_blank" rel="noreferrer">Open live site ↗</a>}
+        </div>
       </footer>
     </main>
   )

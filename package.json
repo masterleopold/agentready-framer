@@ -8,6 +8,7 @@
     "build": "vite build",
     "typecheck": "tsc --noEmit",
     "test": "tsx scripts/validate-runtime.ts",
+    "test:live": "tsx scripts/validate-live.ts",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
     "pack": "npx framer-plugin-tools@latest pack"
@@ -28,6 +29,7 @@
     "eslint-plugin-react-hooks": "^5.1.0",
     "eslint-plugin-react-refresh": "^0.4.9",
     "globals": "^15.9.0",
+    "jsdom": "^29.1.1",
     "tsx": "^4.23.13",
     "typescript": "^5.9",
     "typescript-eslint": "^8.0.1",
