@@ -1,5 +1,5 @@
 import * as React from "react"
-import { addPropertyControls, ControlType } from "framer"
+import { addPropertyControls, ControlType, useIsStaticRenderer } from "framer"
 
 // Visual language mirrors framer.com: black page, #111 section surfaces, #171717 cards,
 // #1F1F1F controls, 7% white hairlines, 8–20px radii, Inter 14px/500 UI text.
@@ -47,15 +47,18 @@ type Panel = "purchase" | "workflow" | "integrations"
 
 function useNarrow(ref: React.RefObject<HTMLDivElement | null>) {
   const [narrow, setNarrow] = React.useState(false)
+  // The Framer canvas renders statically and reports a zero-width box on the first measurement,
+  // which would collapse the playground into phone tabs. Only measure in a live browser.
+  const isStatic = useIsStaticRenderer()
   React.useEffect(() => {
     const el = ref.current
-    if (!el || typeof ResizeObserver === "undefined") return
-    const check = () => setNarrow(el.getBoundingClientRect().width < 720)
+    if (isStatic || !el || typeof ResizeObserver === "undefined") return
+    const check = () => { const width = el.getBoundingClientRect().width; if (width > 0) setNarrow(width < 720) }
     check()
     const observer = new ResizeObserver(check)
     observer.observe(el)
     return () => observer.disconnect()
-  }, [ref])
+  }, [ref, isStatic])
   return narrow
 }
 
