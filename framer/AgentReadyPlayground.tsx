@@ -43,6 +43,21 @@ function Choice({ name, value, children, type = "checkbox", defaultChecked = fal
 }
 
 type Message = { role: "assistant" | "user"; text: string }
+type Panel = "purchase" | "workflow" | "integrations"
+
+function useNarrow(ref: React.RefObject<HTMLDivElement | null>) {
+  const [narrow, setNarrow] = React.useState(false)
+  React.useEffect(() => {
+    const el = ref.current
+    if (!el || typeof ResizeObserver === "undefined") return
+    const check = () => setNarrow(el.getBoundingClientRect().width < 720)
+    check()
+    const observer = new ResizeObserver(check)
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [ref])
+  return narrow
+}
 
 interface AgentReadyPlaygroundProps {
   checkoutUrl?: string
@@ -75,6 +90,10 @@ export default function AgentReadyPlayground({ checkoutUrl = "", creatorPrice = 
   const [showJson, setShowJson] = React.useState(false)
   const [knowledgeQuery, setKnowledgeQuery] = React.useState("How are payments kept safe?")
   const [knowledgeStatus, setKnowledgeStatus] = React.useState("Hybrid search · cited sources · SHA-256 provenance")
+  const rootRef = React.useRef<HTMLDivElement | null>(null)
+  const narrow = useNarrow(rootRef)
+  const [panel, setPanel] = React.useState<Panel>("purchase")
+  const show = (name: Panel) => !narrow || panel === name
   const selectedPrice = license === "studio" ? studioPrice : license === "agency" ? agencyPrice : creatorPrice
 
   const send = (event: React.FormEvent) => {
@@ -129,7 +148,7 @@ export default function AgentReadyPlayground({ checkoutUrl = "", creatorPrice = 
 
   const canonical = typeof window !== "undefined" ? window.location.href : "https://agentready.framer.website/"
 
-  return <div style={{ ...style, position: "relative", width: "100%", padding: 24, color: color.text, background: color.surface, border: `1px solid ${color.border}`, borderRadius: 20, fontFamily: sans, fontFeatureSettings: '"cv11", "ss03", "cv01", "cv09", "cv05"', boxSizing: "border-box", display: "grid", gap: 12 }}>
+  return <div ref={rootRef} style={{ ...style, position: "relative", width: "100%", padding: narrow ? 16 : 24, color: color.text, background: color.surface, border: `1px solid ${color.border}`, borderRadius: 20, fontFamily: sans, fontFeatureSettings: '"cv11", "ss03", "cv01", "cv09", "cv05"', boxSizing: "border-box", display: "grid", gap: 12 }}>
     <div style={{ display: "flex", justifyContent: "space-between", gap: 20, alignItems: "end", flexWrap: "wrap", padding: "4px 4px 12px" }}>
       <div>
         <div style={eyebrow(color.textTertiary)}>Live WebMCP playground</div>
@@ -139,17 +158,20 @@ export default function AgentReadyPlayground({ checkoutUrl = "", creatorPrice = 
         <span style={{ width: 6, height: 6, borderRadius: 999, background: color.green }} />Agent ready
       </div>
     </div>
+    {narrow && <div role="tablist" aria-label="Playground sections" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 4, padding: 4, background: color.card, borderRadius: 10 }}>
+      {([["purchase", "Purchase"], ["workflow", "Forms & chat"], ["integrations", "Integrations"]] as [Panel, string][]).map(([key, labelText]) => <button key={key} role="tab" type="button" aria-selected={panel === key} onClick={() => setPanel(key)} style={{ height: 34, border: 0, borderRadius: 8, background: panel === key ? color.control : "transparent", color: panel === key ? color.text : color.textSecondary, font: `500 13px ${sans}`, letterSpacing: "-0.01em", cursor: "pointer" }}>{labelText}</button>)}
+    </div>}
 
-    <form data-agentready-form="plugin-purchase" aria-label="Purchase AgentReady plugin license" onSubmit={purchase} onChange={(event) => { const target = event.target as HTMLInputElement; if (target.name === "license") setLicense(target.value) }} style={card}>
+    {show("purchase") && <form data-agentready-form="plugin-purchase" aria-label="Purchase AgentReady plugin license" onSubmit={purchase} onChange={(event) => { const target = event.target as HTMLInputElement; if (target.name === "license") setLicense(target.value) }} style={card}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start", gap: 20, marginBottom: 18, flexWrap: "wrap" }}>
         <div style={{ flex: "1 1 320px", minWidth: 0 }}>
-          <div style={eyebrow(color.blue)}>Buy AgentReady with WebMCP</div>
+          <div style={eyebrow(color.blue)}>Example purchase · demo checkout</div>
           <h3 style={{ ...cardTitle, fontSize: 22 }}>Purchase the plugin using its own tools.</h3>
-          <p style={body}>The agent prepares the order. You review and complete secure checkout.</p>
+          <p style={body}>The agent prepares the order and you review it. This is a demo: nothing is charged and no card is requested.</p>
         </div>
         <div style={{ display: "flex", alignItems: "baseline", gap: 8, whiteSpace: "nowrap" }}>
           <strong style={{ color: color.text, font: `500 26px ${display}`, letterSpacing: "-0.03em", fontVariantNumeric: "tabular-nums" }}>{selectedPrice}</strong>
-          <small style={{ color: color.textTertiary, font: `500 12px ${sans}` }}>one-time</small>
+          <small style={{ color: color.textTertiary, font: `500 12px ${sans}` }}>example price</small>
         </div>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10 }}>
@@ -164,10 +186,10 @@ export default function AgentReadyPlayground({ checkoutUrl = "", creatorPrice = 
         <Choice type="radio" name="license" value="agency"><span>Agency · unlimited sites</span><span style={price}>{agencyPrice}</span></Choice>
       </div>
       <label style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 14, color: color.textSecondary, font: `400 13px ${sans}`, letterSpacing: "-0.01em" }}><input required type="checkbox" name="acceptTerms" value="accepted" style={check} />I will review the license and refund terms before final payment.</label>
-      <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 16, flexWrap: "wrap" }}><button type="submit" style={button}>{checkoutUrl ? "Continue to secure checkout" : "Prepare checkout"}</button><span aria-live="polite" style={{ color: purchaseReady ? color.green : color.textTertiary, font: `400 12px ${sans}` }}>{purchaseReady ? "✓ " + license + " order prepared · Final payment remains human-controlled" : "Card and wallet credentials are never exposed to WebMCP."}</span></div>
-    </form>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 16, flexWrap: "wrap" }}><button type="submit" style={button}>{checkoutUrl ? "Continue to secure checkout" : "Prepare checkout"}</button><span aria-live="polite" style={{ color: purchaseReady ? color.green : color.textTertiary, font: `400 12px ${sans}` }}>{purchaseReady ? "✓ " + license + " order prepared · Final payment remains human-controlled" : "Demo only. Card and wallet details are never requested here."}</span></div>
+    </form>}
 
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 12 }}>
+    {show("workflow") && <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 12 }}>
       <form data-agentready-form="application" aria-label="Multi-step application" onSubmit={(event) => { event.preventDefault(); setApplicationStatus("✓ Application received in this local demo") }} style={{ ...card, display: "flex", flexDirection: "column" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}><strong style={{ color: color.text, font: `500 16px ${display}`, letterSpacing: "-0.02em" }}>Application</strong><span aria-current="step" style={{ color: color.textTertiary, font: `500 12px ${sans}` }}>Step {step} of 3</span></div>
         <div aria-hidden={step !== 1} style={{ display: step === 1 ? "grid" : "none", gap: 12 }}>
@@ -193,14 +215,14 @@ export default function AgentReadyPlayground({ checkoutUrl = "", creatorPrice = 
         </div>
         <form onSubmit={send} style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 8, marginTop: 14 }}><input style={field} name="message" aria-label="Chat message" value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="Ask AgentReady…" /><button type="submit" aria-label="Send" style={{ ...secondaryButton, height: 40 }}>Send</button></form>
       </section>
-    </div>
+    </div>}
 
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12 }}>
-      <section aria-label="Shopify cart demo" style={card}><div style={eyebrow(color.blue)}>Shopify Storefront MCP + UCP</div><h3 style={cardTitle}>Agent Kit — Pro</h3><p style={{ ...body, marginBottom: 16 }}>Localized catalog discovery, variant selection, merchant policies, cart state, and safe hosted checkout.</p><div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}><button type="button" style={button} onClick={() => setCart((value: number) => value + 1)}>Add to cart · $29</button><span style={{ color: color.textTertiary, font: `400 12px ${sans}`, fontVariantNumeric: "tabular-nums" }}>{cart} in cart</span></div></section>
+    {show("integrations") && <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12 }}>
+      <section aria-label="Shopify cart demo" style={card}><div style={eyebrow(color.blue)}>Shopify Storefront MCP + UCP</div><h3 style={cardTitle}>Agent Kit — Pro</h3><p style={{ ...body, marginBottom: 16 }}>Localized catalog discovery, variant selection, merchant policies, cart state, and safe hosted checkout.</p><div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}><button type="button" style={button} onClick={() => setCart((value: number) => value + 1)}>Add to cart · $29</button><span style={{ color: color.textTertiary, font: `400 12px ${sans}`, fontVariantNumeric: "tabular-nums" }}>{cart} in cart</span></div><p style={status}>Demo counter. The seven live cart tools register once a .myshopify.com store is connected.</p></section>
       <section aria-label="Cloudflare payment demo" style={card}><div style={eyebrow(color.blue)}>Cloudflare · HTTP 402</div><h3 style={cardTitle}>Agentic plugin purchase</h3><p style={{ ...body, marginBottom: 16 }}>MPP challenge, scoped agent approval, and a protocol receipt without exposing wallet keys to Framer.</p><button type="button" style={secondaryButton} onClick={() => void requestPayment()}>Request payment challenge</button><p aria-live="polite" style={status}>{paymentStatus}</p></section>
       <section aria-label="Paid structured content demo" style={card}><div style={eyebrow(color.blue)}>Pay per crawl · JSON</div><h3 style={cardTitle}>Licensed content feed</h3><p style={{ ...body, marginBottom: 16 }}>Canonical source, JSON-LD, permitted purposes, license, retrieval time, charged header, and SHA-256 digest.</p><button type="button" style={secondaryButton} onClick={() => setShowJson((value: boolean) => !value)}>{showJson ? "Hide JSON contract" : "Preview JSON contract"}</button>{showJson && <pre style={{ margin: "12px 0 0", padding: 12, color: color.textSecondary, background: color.control, border: `1px solid ${color.border}`, borderRadius: 10, font: `400 11px ui-monospace, SFMono-Regular, Menlo, monospace`, lineHeight: 1.5, overflow: "auto" }}>{JSON.stringify({ schema: "/agentready/schema.json", source: { canonical }, license: { contentUse: "reference", permittedPurposes: ["search", "ai-input"] }, provenance: { contentDigest: "sha-256" } }, null, 2)}</pre>}</section>
       <section aria-label="Cloudflare intelligence demo" style={card}><div style={eyebrow(color.blue)}>AI Search · Browser Run</div><h3 style={cardTitle}>Grounded site knowledge</h3><p style={{ ...body, marginBottom: 14 }}>Rendered Framer pages become cited AI Search knowledge. Browser Run verifies every release; Analytics Engine records privacy-safe tool health.</p><form onSubmit={searchKnowledge} style={{ display: "grid", gap: 8 }}><input style={field} name="knowledgeQuery" aria-label="Knowledge search query" value={knowledgeQuery} onChange={(event) => setKnowledgeQuery(event.target.value)} /><button type="submit" style={{ ...secondaryButton, height: 40 }}>Search</button></form><p aria-live="polite" style={status}>{knowledgeStatus}</p></section>
-    </div>
+    </div>}
   </div>
 }
 
