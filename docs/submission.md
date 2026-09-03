@@ -46,27 +46,29 @@ AgentReady's larger vision is an Agent API Builder for Websites: a visual layer 
 
 ## Video outline (under 3 minutes)
 
-### 0:00–0:20 — Problem
+The production-ready shot list, narration, exact ChatGPT prompts, and recording checklist are in [demo-video-runbook.md](demo-video-runbook.md). Target **2:50–2:57** so the uploaded video remains safely below the three-minute limit.
+
+### 0:00–0:10 — Problem
 
 Show a polished Framer site and explain that browser agents still have to infer actions from pixels and DOM structure. WebMCP solves that, but implementation is still developer-oriented.
 
-### 0:20–0:55 — Builder
+### 0:10–0:49 — Builder
 
 Open AgentReady in Framer. Show the automatic scan, capability switches, Shopify and Cloudflare configuration, and the deliberately separate high-risk controls.
 
-### 0:55–1:15 — Install
+### 0:49–1:04 — Install
 
 Select Install tools. Show the three readiness checks: Runtime, Enabled, and Live URL. Publish the site through Framer.
 
-### 1:15–2:20 — Agent demo
+### 1:04–2:44 — Agent demo
 
 Open the public demo in a WebMCP-capable ChatGPT browser. Prepare a multi-step form, continue the chatbot after reading its reply, assemble a Shopify cart, and surface a Cloudflare MPP payment challenge. Emphasize the visible handoff before irreversible actions.
 
-### 2:20–2:45 — Technical proof
+### 2:44–2:52 — Technical proof
 
-Briefly show Direct/Hybrid/Bridge mode, the open-source runtime, narrow schemas, payment-secret guard, Shopify MCP/UCP discovery and cart redaction, the same-origin `/mcp` Worker, Cloudflare-injected bridge, and passing runtime/gateway tests.
+Flash the public GitHub repository, MIT license, and passing 30-tool live validation. Leave deeper Direct/Hybrid/Bridge and Worker details in the submission text so the video remains legible.
 
-### 2:45–2:58 — Vision
+### 2:52–2:57 — Vision
 
 Close with: “AgentReady turns every Framer creator into an agent API designer — no backend, no schema authoring, and no duplicate content model.”
 
