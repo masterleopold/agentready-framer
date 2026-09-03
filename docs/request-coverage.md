@@ -9,7 +9,7 @@ This is the implementation audit against the product requirements for AgentReady
 | No-code WebMCP Builder for Framer | Implemented | Workspace Plugin scans the active canvas and CMS, exposes capability switches, and installs generated Custom Code |
 | Framer-like visual design and typography | Implemented | Responsive dark Framer-style demo and native-feeling plugin UI; decorative header icons removed |
 | Public source and installable package | Implemented | GitHub repository, `npm run build`, and `npm run pack` |
-| Framer Marketplace distribution | External setup | Package is ready; publication requires Framer review and owner submission |
+| Framer Marketplace distribution | Ready for owner submission | Package, manifest icon, and listing copy are ready; the owner must upload and publish the archive from Framer Community |
 | Self-host plugin UI on Vercel or Cloudflare | Implemented | Static `dist` is deployable while optional Workers remain separate services |
 | Cloudflare WebMCP edge delivery | Implemented with external setup | Direct/Hybrid/Bridge modes, same-origin `/mcp` Worker, remote/local tool separation, and C2PA pack guidance; Cloudflare zone activation remains external |
 | Chrome 149+ Origin Trial onboarding | Implemented with external setup | Plugin stores an optional public, first-party token and installs an escaped `origin-trial` meta element in `headStart`; the site owner must register the exact origin and renew expired tokens |
@@ -77,6 +77,6 @@ These are operational dependencies rather than missing product code:
 4. Configure Turnstile and R2 if the optional upload handoff is demonstrated.
 5. Create the AI Search instance/namespace and Analytics Engine dataset, deploy the intelligence Worker, set its admin secret, and optionally configure an AI Gateway chat endpoint.
 6. Route the MCP gateway at the Framer custom domain's `/mcp`, enable Cloudflare Agent Readiness → WebMCP, and select the Site MCP Server and optional Content Credentials packs.
-7. Submit the packed plugin for Framer Marketplace review.
+7. Upload the packed plugin with the prepared listing media and publish it from Framer Community.
 8. Record the demo video and complete the Devpost submission before the official deadline.
 9. Register the final published origin in Chrome's WebMCP origin trial, install the token with AgentReady, and verify it plus the registered tools in Chrome DevTools or the Model Context Tool Inspector.

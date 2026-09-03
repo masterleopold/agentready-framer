@@ -93,7 +93,7 @@ Scan project → Review capabilities → Choose delivery → Install tools → P
 
 For Chrome 149+ live testing, register the published first-party origin in the WebMCP origin trial and paste the complete token into **Chrome 149+ Origin Trial**. AgentReady installs it as an `origin-trial` meta element at the start of the document head. The token is origin-bound, public activation metadata—not a secret. For local development, leave it empty and enable `chrome://flags/#enable-webmcp-testing` instead.
 
-Build the Framer Marketplace archive with `npm run pack`. Workspace teams may instead host the static `dist` directory on Vercel or Cloudflare Pages, with `framer.json` at the deployment root. Plugin UI hosting is separate from the optional Workers that provide edge integrations.
+Build the Framer Marketplace archive with `npm run pack`. Prepared Marketplace copy and media requirements are in [docs/marketplace-listing.md](docs/marketplace-listing.md). Workspace teams may instead host the static `dist` directory on Vercel or Cloudflare Pages, with `framer.json` at the deployment root. Plugin UI hosting is separate from the optional Workers that provide edge integrations.
 
 ## Add the Cloudflare Hybrid gateway
 
