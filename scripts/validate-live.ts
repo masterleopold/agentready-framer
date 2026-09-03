@@ -34,6 +34,10 @@ const dom = new JSDOM(selectedHtml, {
   runScripts: "dangerously",
   virtualConsole,
   beforeParse(window) {
+    Object.defineProperty(window, "fetch", {
+      configurable: true,
+      value: globalThis.fetch.bind(globalThis),
+    })
     Object.defineProperty(window.document, "modelContext", {
       configurable: true,
       value: {
@@ -60,10 +64,13 @@ assert.ok(tools.every((tool) => tool.title?.length > 0), "Every live tool must e
 assert.ok(tools.every((tool) => Object.keys(tool.annotations ?? {}).every((key) => ["readOnlyHint", "untrustedContentHint"].includes(key))), "Live tools must use only standard WebMCP annotations.")
 assert.deepEqual(names, [
   "advance_form_step",
+  "answer_from_site",
   "compose_chat_message",
   "discover_paid_content",
   "fill_address",
   "get_collection_item",
+  "get_content_provenance",
+  "inspect_agentic_offers",
   "inspect_checkout",
   "inspect_forms",
   "navigate_to",
@@ -71,8 +78,10 @@ assert.deepEqual(names, [
   "prepare_checkout",
   "prepare_file_upload",
   "read_conversation",
+  "request_agentic_payment",
   "search_collection",
   "search_site",
+  "search_site_knowledge",
   "select_form_options",
   "send_chat_message",
   "set_form_date",

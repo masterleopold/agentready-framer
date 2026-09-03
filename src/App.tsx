@@ -23,6 +23,33 @@ const CAPABILITIES: Array<{ id: CapabilityId; title: string; description: string
 
 const DEFAULT_CAPABILITIES: CapabilityId[] = ["siteSearch", "cmsSearch", "navigation", "formFill", "conversation", "checkoutAssist"]
 const SETTINGS_KEY = "agentready:settings:v1"
+const DIRECT_TOOL_COUNTS: Record<CapabilityId, number> = {
+  siteSearch: 1,
+  cmsSearch: 2,
+  navigation: 1,
+  formFill: 7,
+  conversation: 2,
+  chatSend: 1,
+  checkoutAssist: 2,
+  shopifyCommerce: 7,
+  agenticPayments: 2,
+  payPerCrawl: 1,
+  cloudflareKnowledge: 3,
+  formSubmit: 1,
+}
+const FULL_DIRECT_TOOL_COUNT = Object.values(DIRECT_TOOL_COUNTS).reduce((count, tools) => count + tools, 0)
+
+function parseInstalledConfig(html?: string | null): RuntimeConfig | null {
+  if (!html) return null
+  const match = html.match(/const config = (\{.*?\});\n/s)
+  if (!match) return null
+  try {
+    const config = JSON.parse(match[1]) as RuntimeConfig
+    return config.version === 1 && Array.isArray(config.capabilities) ? config : null
+  } catch {
+    return null
+  }
+}
 
 function primitiveValue(value: unknown): unknown {
   if (value === null || typeof value === "string" || typeof value === "number" || typeof value === "boolean") return value
@@ -93,6 +120,7 @@ export function App() {
     setOriginTrialInstalled(Boolean(customCode.headStart.html?.includes("agentready-webmcp-origin-trial")))
     setDisabledByUser(bodyEnd.disabled)
     setPublishedUrl(publishInfo.production?.url ?? publishInfo.staging?.url ?? null)
+    return parseInstalledConfig(bodyEnd.html)
   }, [])
 
   const runScan = useCallback(async () => {
@@ -118,10 +146,10 @@ export function App() {
   useEffect(() => { void Promise.all([runScan(), refreshInstallStatus()]) }, [refreshInstallStatus, runScan])
 
   useEffect(() => {
-    void framer.getPluginData(SETTINGS_KEY).then((stored) => {
-      if (!stored) return
+    void Promise.all([framer.getPluginData(SETTINGS_KEY), framer.getCustomCode()]).then(([stored, customCode]) => {
+      const installedConfig = parseInstalledConfig(customCode.bodyEnd.html)
       try {
-        const parsed = JSON.parse(stored) as Partial<{
+        const parsed = (installedConfig ?? (stored ? JSON.parse(stored) : {})) as Partial<{
           enabled: CapabilityId[]
           shopifyDomain: string
           shopifyMode: "auto" | "mcp" | "graphql"
@@ -136,8 +164,35 @@ export function App() {
           mcpPath: string
           contentCredentials: boolean
           originTrialToken: string
+          capabilities: CapabilityId[]
+          delivery: RuntimeConfig["delivery"]
+          shopify: RuntimeConfig["shopify"]
+          cloudflarePayments: RuntimeConfig["cloudflarePayments"]
+          cloudflareIntelligence: RuntimeConfig["cloudflareIntelligence"]
+          crawlMonetization: RuntimeConfig["crawlMonetization"]
         }>
-        if (Array.isArray(parsed.enabled)) setEnabled(parsed.enabled.filter((id): id is CapabilityId => CAPABILITIES.some((capability) => capability.id === id)))
+        const installedCapabilities = installedConfig?.capabilities ?? parsed.enabled
+        if (Array.isArray(installedCapabilities)) setEnabled(installedCapabilities.filter((id): id is CapabilityId => CAPABILITIES.some((capability) => capability.id === id)))
+        if (installedConfig?.delivery) {
+          setDeliveryMode(installedConfig.delivery.mode)
+          setMcpPath(installedConfig.delivery.mcpPath)
+          setContentCredentials(installedConfig.delivery.contentCredentials)
+        }
+        if (installedConfig?.shopify) {
+          setShopifyDomain(installedConfig.shopify.storeDomain)
+          setShopifyMode(installedConfig.shopify.connectionMode ?? "auto")
+          if (installedConfig.shopify.agentProfile) setShopifyAgentProfile(installedConfig.shopify.agentProfile)
+          if (installedConfig.shopify.publicAccessToken) setShopifyToken(installedConfig.shopify.publicAccessToken)
+        }
+        if (installedConfig?.cloudflarePayments) setPaymentEndpoint(installedConfig.cloudflarePayments.endpoint)
+        if (installedConfig?.cloudflareIntelligence) {
+          setIntelligenceEndpoint(installedConfig.cloudflareIntelligence.endpoint)
+          setTelemetryEnabled(installedConfig.cloudflareIntelligence.telemetry)
+        }
+        if (installedConfig?.crawlMonetization) {
+          setCrawlPrice(installedConfig.crawlMonetization.pricePerRequest)
+          setAllowAiTraining(installedConfig.crawlMonetization.purposes.aiTrain)
+        }
         if (typeof parsed.shopifyDomain === "string") setShopifyDomain(parsed.shopifyDomain)
         if (["auto", "mcp", "graphql"].includes(parsed.shopifyMode ?? "")) setShopifyMode(parsed.shopifyMode as "auto" | "mcp" | "graphql")
         if (typeof parsed.shopifyAgentProfile === "string") setShopifyAgentProfile(parsed.shopifyAgentProfile)
@@ -209,20 +264,7 @@ export function App() {
     if (id === "payPerCrawl") return validCrawlPrice
     return true
   }), [enabled, scan, shopifyMode, validCrawlPrice, validIntelligenceEndpoint, validPaymentEndpoint, validShopifyAgentProfile, validShopifyDomain])
-  const directCount = effectiveEnabled.reduce((count, id) => count + ({
-    siteSearch: 1,
-    cmsSearch: 2,
-    navigation: 1,
-    formFill: 7,
-    conversation: 2,
-    chatSend: 1,
-    checkoutAssist: 2,
-    shopifyCommerce: 7,
-    agenticPayments: 2,
-    payPerCrawl: 1,
-    cloudflareKnowledge: 3,
-    formSubmit: 1,
-  }[id] ?? 0), 0)
+  const directCount = effectiveEnabled.reduce((count, id) => count + DIRECT_TOOL_COUNTS[id], 0)
   const remoteToolCounts: Partial<Record<CapabilityId, number>> = { shopifyCommerce: 4, agenticPayments: 2, payPerCrawl: 1, cloudflareKnowledge: 3 }
   const remoteCount = 1 + effectiveEnabled.reduce((count, id) => count + (remoteToolCounts[id] ?? 0), 0)
   const edgePackCount = deliveryMode !== "direct" && contentCredentials ? 2 : 0
@@ -341,7 +383,7 @@ export function App() {
       </section>
 
       <section className="capabilities">
-        <div className="section-heading"><div><div className="section-label">AGENT CAPABILITIES</div><p>Choose what agents can do on the published site.</p></div><span>{toolCount} tools</span></div>
+        <div className="section-heading"><div><div className="section-label">AGENT CAPABILITIES</div><p>Choose what agents can do on the published site.</p></div><span>{toolCount} active / {FULL_DIRECT_TOOL_COUNT} total</span></div>
         <div className="capability-list">
           {CAPABILITIES.map((capability) => {
             const checked = enabled.includes(capability.id)
@@ -394,7 +436,7 @@ export function App() {
         <span className={originTrialInstalled ? "pass" : "pending"}>{originTrialInstalled ? "✓" : "4"} Trial token</span>
       </section>
       <footer>
-        <div className="publish-summary"><span className={installed ? "ready" : "draft"}>{installed ? "Installed" : "Draft"}</span><span>{toolCount} WebMCP tools</span></div>
+        <div className="publish-summary"><span className={installed ? "ready" : "draft"}>{installed ? "Installed" : "Draft"}</span><span>{toolCount} active WebMCP tools</span></div>
         <div className="footer-actions">
           <button className="publish-button" onClick={() => void publish()} disabled={!canPublish || !scan || effectiveEnabled.length === 0 || (deliveryMode !== "direct" && !validMcpPath) || !validOriginTrialToken || status !== "idle"}>{status === "publishing" ? "Installing…" : installed ? "Update tools" : "Install tools"}<span>→</span></button>
           {installed && <button className="deploy-button" onClick={() => void deploySite()} disabled={!canDeploy || disabledByUser || status !== "idle"}>{status === "deploying" ? "Publishing site…" : "Publish site"}</button>}

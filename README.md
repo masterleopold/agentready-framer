@@ -26,7 +26,7 @@ Browser agents normally infer intent from pixels and DOM structure. WebMCP lets 
 | Cloudflare Pay Per Crawl | Advertise pricing and permitted purposes and serve licensed structured JSON with a content digest | Cloudflare performs crawler identity, enforcement, settlement, and charge evidence |
 | Knowledge and trust | Cloudflare AI Search, cited answers, same-origin SHA-256 attestations, anonymous metrics, and Browser Run verification | Retrieved content is untrusted; administration and secrets stay server-side |
 
-The complete Direct runtime contains **30 optional tools**. A site only publishes the capabilities its owner enables, so counts vary by configuration. As of **September 4, 2026**, the public Framer demo's current managed runtime exposes **18 browser-local tools** and is checked end to end by `npm run test:live`.
+The complete Direct runtime contains **30 optional tools**. A site only publishes the capabilities its owner enables, so counts vary by configuration. As of **September 4, 2026**, the public Framer demo exposes **23 live browser tools**: all local capabilities plus deployed Cloudflare Agentic Payments and Intelligence Workers. The remaining seven Shopify commerce tools require a real `.myshopify.com` store connection. The public runtime is checked end to end by `npm run test:live`.
 
 The exact inventory and boundaries are documented in [docs/capability-matrix.md](docs/capability-matrix.md).
 

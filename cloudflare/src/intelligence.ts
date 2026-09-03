@@ -1,7 +1,7 @@
 interface Env {
   AI_SEARCH: AiSearchNamespace
   BROWSER: BrowserRun
-  ANALYTICS: AnalyticsEngineDataset
+  ANALYTICS?: AnalyticsEngineDataset
   ALLOWED_ORIGINS: string
   AI_SEARCH_INSTANCE: string
   CONTENT_LICENSE_URL: string
@@ -146,8 +146,8 @@ async function telemetry(request: Request, env: Env, origin: string) {
   const durationMs = Math.min(300_000, Math.max(0, Number(input.durationMs) || 0))
   if (event !== "webmcp.tool" || !toolPattern.test(tool) || !["success", "error"].includes(outcome)) return json({ error: "Invalid telemetry event" }, 400, cors(origin))
   const session = await shortHash(cleanText(input.session, 128))
-  env.ANALYTICS.writeDataPoint({ indexes: [origin], blobs: [event, tool, outcome, session], doubles: [durationMs, 1] })
-  return new Response(null, { status: 204, headers: cors(origin) })
+  if (env.ANALYTICS) env.ANALYTICS.writeDataPoint({ indexes: [origin], blobs: [event, tool, outcome, session], doubles: [durationMs, 1] })
+  return new Response(null, { status: 204, headers: { ...cors(origin), "x-agentready-telemetry": env.ANALYTICS ? "recorded" : "disabled" } })
 }
 
 function countAccessibilityNodes(node?: BrowserRunSerializedAXNode): number {
@@ -207,7 +207,7 @@ export default {
     if (!origin && !administrator) return json({ error: "Origin not allowed" }, 403)
     const path = new URL(request.url).pathname
     try {
-      if (request.method === "GET" && path === "/v1/status") return json({ ready: true, aiSearch: env.AI_SEARCH_INSTANCE, browserRun: true, analytics: true, aiGateway: Boolean(env.AI_GATEWAY_URL) }, 200, cors(origin))
+      if (request.method === "GET" && path === "/v1/status") return json({ ready: true, aiSearch: env.AI_SEARCH_INSTANCE, browserRun: true, analytics: Boolean(env.ANALYTICS), aiGateway: Boolean(env.AI_GATEWAY_URL) }, 200, cors(origin))
       if (request.method === "POST" && path === "/v1/knowledge/search") return searchKnowledge(request, env, origin)
       if (request.method === "POST" && path === "/v1/knowledge/answer") return answerKnowledge(request, env, origin)
       if (request.method === "POST" && path === "/v1/provenance") return provenance(request, env, origin)
