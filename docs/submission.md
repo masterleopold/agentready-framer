@@ -10,7 +10,7 @@ Turn any Framer site into a safe action surface for agents.
 
 ## Live demo
 
-https://make-aspects-824660.framer.app/agent-ready
+https://agentready.framer.website
 
 ## Source
 

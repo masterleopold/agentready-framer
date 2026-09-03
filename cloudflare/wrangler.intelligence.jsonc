@@ -7,9 +7,9 @@
   "browser": { "binding": "BROWSER", "remote": true },
   "analytics_engine_datasets": [{ "binding": "ANALYTICS", "dataset": "agentready_webmcp" }],
   "vars": {
-    "ALLOWED_ORIGINS": "https://example.framer.website",
+    "ALLOWED_ORIGINS": "https://agentready.framer.website",
     "AI_SEARCH_INSTANCE": "agentready-site",
-    "CONTENT_LICENSE_URL": "https://example.framer.website/terms"
+    "CONTENT_LICENSE_URL": "https://agentready.framer.website/terms"
   },
   "observability": { "enabled": true }
 }

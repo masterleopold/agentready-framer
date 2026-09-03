@@ -6,7 +6,7 @@
   "vars": {
     "CRAWLER_PRICE": "USD 0.01",
     "PAID_PATH_PREFIXES": "/articles/,/research/,/agentready/content.json",
-    "FRAMER_ORIGIN": "https://make-aspects-824660.framer.app",
+    "FRAMER_ORIGIN": "https://agentready.framer.website",
     "CONTENT_LICENSE_ID": "agentready-site-policy-v1",
     "CONTENT_LICENSE_URL": "https://example.com/content-license",
     "CONTENT_USE": "reference",

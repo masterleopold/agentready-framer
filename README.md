@@ -4,7 +4,7 @@ Turn a Framer site into an agent-native website without writing WebMCP code.
 
 AgentReady scans a Framer project, suggests useful agent capabilities, and installs an imperative WebMCP runtime through Framer Custom Code, Cloudflare's edge-injected WebMCP bridge, or both.
 
-**Live demo:** [make-aspects-824660.framer.app/agent-ready](https://make-aspects-824660.framer.app/agent-ready)
+**Live demo:** [agentready.framer.website](https://agentready.framer.website)
 
 ## Why AgentReady
 
@@ -72,7 +72,7 @@ npm run typecheck --prefix cloudflare
 `npm test` executes the generated runtime in a simulated browser and validates all tool behaviors. To verify the deployed Framer page end to end:
 
 ```bash
-AGENTREADY_DEMO_URL=https://make-aspects-824660.framer.app/agent-ready npm run test:live
+AGENTREADY_DEMO_URL=https://agentready.framer.website npm run test:live
 ```
 
 The live test fetches the actual Framer HTML and executes installed Custom Code with a WebMCP-compatible model context. The isolated suite covers all 30 optional tools.
