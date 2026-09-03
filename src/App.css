@@ -319,6 +319,48 @@ footer {
 .footer-actions .row { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .remove-button { color: var(--framer-color-text-tertiary); background: transparent; }
 .remove-button:hover:not(:disabled) { color: var(--ar-red); background: color-mix(in srgb, var(--ar-red) 10%, transparent); }
+
+/* Destructive actions use an in-plugin confirmation panel; native browser dialogs are unsupported. */
+.confirmation-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, .56);
+}
+.confirmation-dialog {
+  width: min(100%, 360px);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  color: var(--framer-color-text);
+  background: var(--framer-color-bg);
+  border: 1px solid var(--framer-color-divider);
+  border-radius: 10px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, .36);
+  user-select: text;
+}
+.confirmation-dialog h2 {
+  margin: 0;
+  color: var(--framer-color-text);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+.confirmation-dialog h2 + p { margin-top: 6px; }
+.confirmation-error { margin: 0; color: var(--ar-red); }
+.confirmation-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.confirmation-actions button { width: 100%; }
+.danger-button { color: #fff; background: var(--ar-red); }
+.danger-button:hover:not(:disabled) { color: #fff; background: #e2352c; }
 .live-link {
   height: 30px;
   display: inline-flex;

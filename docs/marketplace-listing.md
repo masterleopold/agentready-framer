@@ -70,6 +70,12 @@ For setup and troubleshooting, use the repository README and GitHub Issues. In p
 - External dependencies, authentication, privacy, limitations, pricing, and support: disclosed above and in the README.
 - High-quality icon and functional screenshots: ready in `public/icon.svg` and `docs/brand/`.
 
+## Release notes — 0.1.1
+
+- Replaces the unsupported native removal confirmation with an accessible confirmation panel rendered inside the plugin.
+- Keeps removal reversible and permission-gated, prevents duplicate actions while removal is running, and reports failures without closing the panel.
+- Adds lint guards that reject future uses of native `alert()`, `confirm()`, or `prompt()` dialogs.
+
 ## Release notes — 0.1.0
 
 - Publishes capability-scoped WebMCP tools from Framer.

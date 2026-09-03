@@ -19,6 +19,18 @@ export default tseslint.config(
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
+      "no-restricted-globals": [
+        "error",
+        { name: "alert", message: "Native dialogs are unsupported in Framer plugins. Render confirmation UI inside the plugin." },
+        { name: "confirm", message: "Native dialogs are unsupported in Framer plugins. Render confirmation UI inside the plugin." },
+        { name: "prompt", message: "Native dialogs are unsupported in Framer plugins. Render confirmation UI inside the plugin." },
+      ],
+      "no-restricted-properties": [
+        "error",
+        { object: "window", property: "alert", message: "Native dialogs are unsupported in Framer plugins." },
+        { object: "window", property: "confirm", message: "Native dialogs are unsupported in Framer plugins." },
+        { object: "window", property: "prompt", message: "Native dialogs are unsupported in Framer plugins." },
+      ],
       "react-refresh/only-export-components": [
         "warn",
         { allowConstantExport: true },

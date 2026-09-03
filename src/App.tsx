@@ -96,7 +96,7 @@ export function App() {
   const canSaveSettings = useIsAllowedTo("setPluginData")
   const [scan, setScan] = useState<SiteScan | null>(null)
   const [enabled, setEnabled] = useState<CapabilityId[]>(DEFAULT_CAPABILITIES)
-  const [status, setStatus] = useState<"idle" | "scanning" | "publishing" | "deploying">("idle")
+  const [status, setStatus] = useState<"idle" | "scanning" | "publishing" | "deploying" | "removing">("idle")
   const [installed, setInstalled] = useState(false)
   const [disabledByUser, setDisabledByUser] = useState(false)
   const [publishedUrl, setPublishedUrl] = useState<string | null>(null)
@@ -118,6 +118,7 @@ export function App() {
   const [originTrialToken, setOriginTrialToken] = useState("")
   const [originTrialInstalled, setOriginTrialInstalled] = useState(false)
   const [settingsLoaded, setSettingsLoaded] = useState(false)
+  const [removeConfirmationOpen, setRemoveConfirmationOpen] = useState(false)
 
   const refreshInstallStatus = useCallback(async () => {
     const [customCode, publishInfo] = await Promise.all([
@@ -153,6 +154,15 @@ export function App() {
   }, [])
 
   useEffect(() => { void Promise.all([runScan(), refreshInstallStatus()]) }, [refreshInstallStatus, runScan])
+
+  useEffect(() => {
+    if (!removeConfirmationOpen) return
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && status === "idle") setRemoveConfirmationOpen(false)
+    }
+    window.addEventListener("keydown", closeOnEscape)
+    return () => window.removeEventListener("keydown", closeOnEscape)
+  }, [removeConfirmationOpen, status])
 
   useEffect(() => {
     void Promise.all([framer.getPluginData(SETTINGS_KEY), framer.getCustomCode()]).then(([stored, customCode]) => {
@@ -370,13 +380,13 @@ export function App() {
   }
 
   const removeTools = async () => {
-    if (!window.confirm("Remove AgentReady WebMCP Custom Code from this site? The site must be published again for visitors to receive the change.")) return
-    setStatus("publishing")
+    setStatus("removing")
     setError(null)
     try {
       await framer.setCustomCode({ html: null, location: "bodyEnd" })
       await framer.setCustomCode({ html: null, location: "headStart" })
       await refreshInstallStatus()
+      setRemoveConfirmationOpen(false)
       framer.notify("AgentReady WebMCP tools removed", { variant: "success" })
     } catch (removeError) {
       setError(removeError instanceof Error ? removeError.message : "Could not remove WebMCP tools.")
@@ -493,11 +503,36 @@ export function App() {
           <button className="framer-button-primary" onClick={() => void publish()} disabled={!canPublish || !scan || effectiveEnabled.length === 0 || (deliveryMode !== "direct" && !validMcpPath) || !validOriginTrialToken || status !== "idle"}>{status === "publishing" ? "Installing…" : installed ? `Update ${toolCount} tools` : `Install ${toolCount} tools`}</button>
           {installed && <div className="row">
             <button onClick={() => void deploySite()} disabled={!canDeploy || disabledByUser || status !== "idle"}>{status === "deploying" ? "Publishing…" : "Publish site"}</button>
-            <button className="remove-button" onClick={() => void removeTools()} disabled={!canPublish || status !== "idle"}>Remove tools</button>
+            <button className="remove-button" onClick={() => { setError(null); setRemoveConfirmationOpen(true) }} disabled={!canPublish || status !== "idle"}>Remove tools</button>
           </div>}
           {publishedUrl && <a className="live-link" href={publishedUrl} target="_blank" rel="noreferrer">Open live site ↗</a>}
         </div>
       </footer>
+      {removeConfirmationOpen && <div
+        className="confirmation-backdrop"
+        role="presentation"
+        onClick={(event) => {
+          if (event.target === event.currentTarget && status === "idle") setRemoveConfirmationOpen(false)
+        }}
+      >
+        <section
+          className="confirmation-dialog"
+          role="alertdialog"
+          aria-modal="true"
+          aria-labelledby="remove-tools-title"
+          aria-describedby="remove-tools-description"
+        >
+          <div>
+            <h2 id="remove-tools-title">Remove AgentReady tools?</h2>
+            <p id="remove-tools-description">This removes the WebMCP runtime and origin-trial token from Framer Custom Code. Publish the site again for visitors to receive the change.</p>
+          </div>
+          {error && <p className="confirmation-error" role="alert">{error}</p>}
+          <div className="confirmation-actions">
+            <button type="button" autoFocus onClick={() => { setError(null); setRemoveConfirmationOpen(false) }} disabled={status !== "idle"}>Cancel</button>
+            <button type="button" className="danger-button" onClick={() => void removeTools()} disabled={!canPublish || status !== "idle"}>{status === "removing" ? "Removing…" : "Remove tools"}</button>
+          </div>
+        </section>
+      </div>}
     </main>
   )
 }
