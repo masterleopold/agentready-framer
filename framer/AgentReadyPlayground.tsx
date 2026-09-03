@@ -76,7 +76,7 @@ interface AgentReadyPlaygroundProps {
  * @framerSupportedLayoutWidth any
  * @framerSupportedLayoutHeight auto
  */
-export default function AgentReadyPlayground({ checkoutUrl = "", creatorPrice = "¥7,500", studioPrice = "¥22,500", agencyPrice = "¥60,000", creatorVariantId = "", studioVariantId = "", agencyVariantId = "", paymentEndpoint = "", intelligenceEndpoint = "", style }: AgentReadyPlaygroundProps) {
+export default function AgentReadyPlayground({ checkoutUrl = "", creatorPrice = "$49", studioPrice = "$149", agencyPrice = "$399", creatorVariantId = "", studioVariantId = "", agencyVariantId = "", paymentEndpoint = "", intelligenceEndpoint = "", style }: AgentReadyPlaygroundProps) {
   const [step, setStep] = React.useState(1)
   const [messages, setMessages] = React.useState<Message[]>([
     { role: "assistant", text: "Tell me what you are trying to accomplish and I’ll help complete the workflow." },
@@ -191,7 +191,7 @@ export default function AgentReadyPlayground({ checkoutUrl = "", creatorPrice = 
         <Choice type="radio" name="license" value="agency"><span>Agency · unlimited sites</span><span style={price}>{agencyPrice}</span></Choice>
       </div>
       <label style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 14, color: color.textSecondary, font: `400 13px ${sans}`, letterSpacing: "-0.01em" }}><input required type="checkbox" name="acceptTerms" value="accepted" style={check} />I will review the license and refund terms before final payment.</label>
-      <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 16, flexWrap: "wrap" }}><button type="submit" style={button}>{checkoutUrl ? "Continue to secure checkout" : "Prepare checkout"}</button><span aria-live="polite" style={{ color: purchaseReady ? color.green : color.textTertiary, font: `400 12px ${sans}` }}>{purchaseReady ? "✓ " + license + " order prepared · Final payment remains human-controlled" : "Demo only. Card and wallet details are never requested here."}</span></div>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 16, flexWrap: "wrap" }}><button type="submit" style={button}>{checkoutUrl ? "Continue to secure checkout" : "Prepare checkout"}</button><span aria-live="polite" style={{ color: purchaseReady ? color.green : color.textTertiary, font: `400 12px ${sans}` }}>{purchaseReady ? "✓ " + license + " order prepared · Final payment remains human-controlled" : "Prices shown in USD. Shopify checkout charges the equivalent in JPY. Card and wallet details are never requested here."}</span></div>
     </form>}
 
     {show("workflow") && <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 12 }}>
@@ -233,12 +233,13 @@ export default function AgentReadyPlayground({ checkoutUrl = "", creatorPrice = 
 
 addPropertyControls(AgentReadyPlayground, {
   checkoutUrl: { type: ControlType.String, title: "Checkout URL", placeholder: "https://checkout.example.com/agentready" },
-  creatorPrice: { type: ControlType.String, title: "Creator Price", defaultValue: "¥7,500" },
-  studioPrice: { type: ControlType.String, title: "Studio Price", defaultValue: "¥22,500" },
-  agencyPrice: { type: ControlType.String, title: "Agency Price", defaultValue: "¥60,000" },
+  creatorPrice: { type: ControlType.String, title: "Creator Price", defaultValue: "$49" },
+  studioPrice: { type: ControlType.String, title: "Studio Price", defaultValue: "$149" },
+  agencyPrice: { type: ControlType.String, title: "Agency Price", defaultValue: "$399" },
   creatorVariantId: { type: ControlType.String, title: "Creator Variant ID" },
   studioVariantId: { type: ControlType.String, title: "Studio Variant ID" },
   agencyVariantId: { type: ControlType.String, title: "Agency Variant ID" },
   paymentEndpoint: { type: ControlType.String, title: "MPP Worker", placeholder: "https://agentready-payments.workers.dev" },
   intelligenceEndpoint: { type: ControlType.String, title: "AI Search Worker", placeholder: "https://agentready-intelligence.workers.dev" },
 })
+
