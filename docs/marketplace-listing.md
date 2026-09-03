@@ -1,6 +1,6 @@
 # Framer Marketplace listing
 
-Prepared against Framer's official [Publishing your Plugin](https://www.framer.com/developers/publishing) workflow.
+Prepared against Framer's August 7, 2026 [How to publish a plugin](https://www.framer.com/help/articles/how-to-publish-a-plugin/) workflow.
 
 ## Official publication procedure
 
@@ -8,10 +8,14 @@ Prepared against Framer's official [Publishing your Plugin](https://www.framer.c
 2. Test the core flows across different project states and browsers.
 3. Check the complete UI in Framer light and dark themes.
 4. Run `npm run pack` at the repository root.
-5. Open the [Framer Marketplace plugin dashboard](https://www.framer.com/marketplace/dashboard/plugins/) and choose **New Plugin**.
-6. Upload the generated `plugin.zip`, add the listing copy and media below, and submit.
+5. Open the Marketplace section in Framer Community.
+6. Click **Post** in the top toolbar, then choose **Plugin**.
+7. Upload the generated `plugin.zip`; add the byline, description, images, tags, and pricing details below.
+8. Optionally create a Community feed post, then click **Submit**.
 
-Uploading and submitting creates the public Marketplace entry. Keep that final action for the project owner's explicit review.
+Framer currently publishes a plugin immediately after submission, with no review or waiting period. Keep that final public action for the project owner's explicit review. Test in a fresh Framer project and verify the listing copy, pricing, screenshots, and light/dark UI before submitting.
+
+For later releases, open the plugin's Community page, use the three-dot menu, choose **Publish New Version**, upload a newly packed ZIP, and add concise release notes.
 
 ## Listing
 

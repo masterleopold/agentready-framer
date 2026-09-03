@@ -1,6 +1,6 @@
 # Request coverage audit
 
-This is the implementation audit against the product requirements for AgentReady. “Implemented” means code and automated coverage exist in this repository. “External setup” means the integration is implemented but cannot be made live without an account, secret, product, zone, or marketplace approval owned by the operator.
+This is the implementation audit against the product requirements for AgentReady. “Implemented” means code and automated coverage exist in this repository. “External setup” means the integration is implemented but cannot be made live without an account, secret, product, zone, or an explicit Marketplace publication action owned by the operator.
 
 ## Product and distribution
 
