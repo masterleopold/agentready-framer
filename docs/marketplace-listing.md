@@ -14,7 +14,7 @@ Quality preflight follows Framer's August 7, 2026 [Plugin best practices](https:
 7. Upload the generated `plugin.zip`; add the byline, description, images, tags, and pricing details below.
 8. Optionally create a Community feed post, then click **Submit**.
 
-Framer currently publishes a plugin immediately after submission, with no review or waiting period. Keep that final public action for the project owner's explicit review. Test in a fresh Framer project and verify the listing copy, pricing, screenshots, and light/dark UI before submitting.
+AgentReady was published on September 4, 2026 and is available at [framer.com/marketplace/plugins/agentready](https://www.framer.com/marketplace/plugins/agentready/). Framer currently publishes a plugin immediately after submission, with no review or waiting period. Test each new version in a fresh Framer project and verify the listing copy, pricing, screenshots, and light/dark UI before submitting it.
 
 For later releases, open the plugin's Community page, use the three-dot menu, choose **Publish New Version**, upload a newly packed ZIP, and add concise release notes.
 
@@ -53,12 +53,12 @@ For setup and troubleshooting, use the repository README and GitHub Issues. In p
 
 ## Marketplace media checklist
 
-1. Hero image: current 30-tool plugin beside the live AgentReady Framer canvas (`docs/brand/framer-plugin-latest-dark.png`).
+1. Marketplace thumbnail: isolated current 30-tool plugin over a GPT Image 2-generated, non-organic geometric background (`docs/brand/marketplace-thumbnail.png`, 1600 × 1200). The real plugin capture is composited without regenerating its UI or text.
 2. Light-theme proof: the same current plugin using Framer's light theme (`docs/brand/framer-plugin-latest-light.png`).
 3. Capability image: Advanced forms, Read & compose chat, Shopify commerce, and Cloudflare integrations (`docs/brand/plugin-panel-30-tools.png`).
 4. Safety image: human-only payment and authentication boundary (`docs/brand/safety-boundaries.png`).
 5. Demo image: `agentready.framer.website` with the registered WebMCP tools (`docs/brand/live-demo-1600x1000.png`).
-6. Keep the thumbnail focused on the real plugin UI, with minimal text and no decorative claims.
+6. Keep the thumbnail focused on the real plugin UI, with minimal text and no decorative claims. If Framer marks media as reported content, replace it with the geometric-background thumbnail rather than asking visitors to reveal the blurred asset.
 
 ## Best-practice preflight
 

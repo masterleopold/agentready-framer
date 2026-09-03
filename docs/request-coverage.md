@@ -9,7 +9,7 @@ This is the implementation audit against the product requirements for AgentReady
 | No-code WebMCP Builder for Framer | Implemented | Workspace Plugin scans the active canvas and CMS, exposes capability switches, and installs generated Custom Code |
 | Framer-like visual design and typography | Implemented | Responsive dark Framer-style demo and native-feeling plugin UI; decorative header icons removed |
 | Public source and installable package | Implemented | GitHub repository, `npm run build`, and `npm run pack` |
-| Framer Marketplace distribution | Ready for owner submission | Package, manifest icon, and listing copy are ready; the owner must upload and publish the archive from Framer Community |
+| Framer Marketplace distribution | Published | Public listing: https://www.framer.com/marketplace/plugins/agentready/; package, manifest icon, listing copy, and 1600 × 1200 Marketplace thumbnail are maintained in this repository |
 | Self-host plugin UI on Vercel or Cloudflare | Implemented | Static `dist` is deployable while optional Workers remain separate services |
 | Cloudflare WebMCP edge delivery | Implemented with external setup | Direct/Hybrid/Bridge modes, same-origin `/mcp` Worker, remote/local tool separation, and C2PA pack guidance; Cloudflare zone activation remains external |
 | Chrome 149+ Origin Trial onboarding | Implemented with external setup | Plugin stores an optional public, first-party token and installs an escaped `origin-trial` meta element in `headStart`; the site owner must register the exact origin and renew expired tokens |
