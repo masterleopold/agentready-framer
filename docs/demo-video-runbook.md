@@ -4,13 +4,25 @@ Target length: **2:50–2:57**. Record at 1920 × 1080, 30 fps, with English nar
 
 ## Recording setup
 
-1. Use a duplicate of the AgentReady Framer project for the install-and-publish scene. Do not install another runtime into the production project while its legacy **API Plugin** Custom Code is active.
-2. In the duplicate, remove any legacy AgentReady/API Plugin Custom Code, open the Marketplace AgentReady plugin, load the demo settings if offered, and enable all 30 tools.
+1. Use the prepared **AgentReady (copy)** Framer project for the install-and-publish scene. It is an unpublished duplicate and its legacy API Plugin Custom Code has already been removed. Do not install another runtime into the production project while its legacy **API Plugin** Custom Code is active.
+2. Optionally rename the duplicate to **AgentReady** before opening the Marketplace plugin so its one-click demo-settings restoration appears. Otherwise enable all capabilities and enter the public demo values below. Stop when the footer reads **30 of 30 tools**; leave the actual Install click for the recording.
 3. Keep Storefront tokens, Worker secrets, wallet credentials, and admin secrets off screen. Public Shopify and Cloudflare endpoint URLs may be shown.
 4. In ChatGPT, select GPT-5.6 Sol or Terra and enable **Settings → Browser → Permissions → Enable site tools**.
 5. Open `https://agentready.framer.website/?judge=20260904-video` in ChatGPT's in-app browser. Confirm **Available site tools** shows 30 tools before recording.
 6. Run every prompt once before recording. Start the final take with an empty Shopify cart, the application form reset, and a fresh cache-busting query parameter.
 7. Cut network waits and typing pauses, but do not fake results or reorder a result before its tool call. Prefer one continuous screen recording with clean jump cuts.
+
+### Public demo values for the recording copy
+
+- Shopify domain: `tkigey-1f.myshopify.com`
+- Connection: `Auto · MCP with GraphQL fallback`
+- UCP agent profile: `https://agentready-intelligence.hara-7b1.workers.dev/.well-known/ucp-agent.json`
+- Standard MCP proxy: `https://agentready-intelligence.hara-7b1.workers.dev/v1/shopify/mcp`
+- Cloudflare payments: `https://agentready-agentic-payments.hara-7b1.workers.dev`
+- Cloudflare intelligence: `https://agentready-intelligence.hara-7b1.workers.dev`
+- Pay Per Crawl: `0.01` USD; leave paid AI training disabled
+- Delivery: `Direct · Framer Custom Code`
+- Origin-trial token: leave blank for this recording copy
 
 ## Timeline and narration
 
@@ -31,7 +43,7 @@ Target length: **2:50–2:57**. Record at 1920 × 1080, 30 fps, with English nar
 
 ### Form
 
-> Use this site's WebMCP tools to inspect the application form. Fill it with Demo Agent, agent@example.com, 1-1 Marunouchi, Tokyo 100-0005, Japan. Choose the Studio plan, select Design and AI, and set September 10, 2026 at 14:30. Move through the steps as needed, but do not submit.
+> Use this site's WebMCP tools to inspect the multi-step application form. Fill it with Demo Agent, 1-1 Marunouchi, Tokyo 100-0005, Japan. Choose the Pro plan, select Design and Commerce, and set September 10, 2026 at 14:30. Move through the steps as needed, but do not submit.
 
 Expected visible proof: calls including `inspect_forms`, `prefill_form`, `fill_address`, `select_form_options`, `set_form_date`, and `advance_form_step`; populated controls; no submission.
 
@@ -62,4 +74,3 @@ Expected visible proof: `inspect_agentic_offers`, `request_agentic_payment`, HTT
 - Avoid long source-code shots. If code appears, limit it to one second of the public repository and the passing 30-tool test summary.
 - End on `agentready.framer.website` and include the GitHub repository in the YouTube description.
 - Upload as **Unlisted** or **Public**, never Private, and verify playback while signed out before adding the URL to Devpost.
-
