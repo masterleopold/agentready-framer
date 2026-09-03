@@ -4,7 +4,7 @@ import { buildOriginTrialCustomCode, buildWebMcpCustomCode } from "./runtime"
 import type { CapabilityId, CmsCollectionSnapshot, RuntimeConfig, SiteScan } from "./types"
 import "./App.css"
 
-framer.showUI({ position: "top right", width: 390, height: 760 })
+framer.showUI({ position: "top right", width: 300, height: 720 })
 
 const CAPABILITIES: Array<{ id: CapabilityId; title: string; description: string; risk?: string }> = [
   { id: "siteSearch", title: "Search website", description: "Find matching text, sections, and links on the current page." },
@@ -388,13 +388,13 @@ export function App() {
   return (
     <main>
       <header className="hero">
-        <div><div className="eyebrow">AGENTREADY</div><h1>Make this site agent-ready.</h1></div>
-        <span className={`status-dot ${installed ? "live" : ""}`} title={installed ? "Installed" : "Not installed"} />
+        <div><h1>Make this site agent-ready</h1><p>Publish typed WebMCP tools for agents.</p></div>
+        <span className={`status-pill ${installed ? "live" : ""}`}>{installed ? "Installed" : "Not installed"}</span>
       </header>
 
-      <section className="scan-card">
+      <section className="card">
         <div className="scan-card-top">
-          <div><div className="section-label">SITE SCAN</div><strong>{scan?.projectName ?? "Reading project…"}</strong></div>
+          <div><div className="section-label">Site scan</div><strong>{scan?.projectName ?? "Reading project…"}</strong></div>
           <button className="icon-button" onClick={() => void runScan()} disabled={status !== "idle"} aria-label="Scan again">↻</button>
         </div>
         {scan ? <div className="scan-stats">
@@ -403,8 +403,8 @@ export function App() {
         </div> : <div className="scan-skeleton" />}
       </section>
 
-      <section className="integration-settings delivery-settings">
-        <div className="section-label">WEBMCP DELIVERY</div>
+      <section className="card">
+        <div className="section-label">Delivery</div>
         {scan?.projectName === "AgentReady" && !installed && <div className={`identity-notice ${demoSettingsComplete ? "ready" : ""}`}>
           <strong>{demoSettingsComplete ? "Demo settings restored" : "Existing runtime uses another plugin identity"}</strong>
           <span>{demoSettingsComplete ? "Settings are saved locally. Remove the separate API Plugin Custom Code before installing from this development plugin." : "Framer isolates settings and Custom Code by plugin identity, so this development build cannot read the live API Plugin configuration."}</span>
@@ -421,14 +421,14 @@ export function App() {
           <p className={validMcpPath ? "connection-result" : "connection-error"}>{validMcpPath ? "Configure this same-origin path and selected packs in Cloudflare Agent Readiness → WebMCP." : "Use a same-origin absolute path such as /mcp."}</p>
           {contentCredentials && <p>C2PA tools decode embedded provenance metadata; the preview pack reports signatureVerified: false and is not cryptographic verification.</p>}
         </>}
-        {deliveryMode === "direct" && <p>All tools run in the visitor browser. Hybrid is recommended when the site is behind Cloudflare.</p>}
-        <div className="section-label origin-trial-label">CHROME 149+ ORIGIN TRIAL</div>
+        {deliveryMode === "direct" && <p className="hint">All tools run in the visitor’s browser. Hybrid is recommended behind Cloudflare.</p>}
+        <div className="section-label">Chrome origin trial</div>
         <input value={originTrialToken} onChange={(event) => setOriginTrialToken(event.target.value.replace(/\s+/g, ""))} placeholder="Optional first-party origin trial token" aria-label="Chrome WebMCP origin trial token" />
         <p className={validOriginTrialToken ? "connection-result" : "connection-error"}>{validOriginTrialToken ? (originTrialToken ? "Token will be installed in the document head. Verify its origin and expiry in Chrome DevTools." : "Optional for local testing with chrome://flags/#enable-webmcp-testing.") : "Paste the complete first-party token without spaces."}</p>
       </section>
 
       <section className="capabilities">
-        <div className="section-heading"><div><div className="section-label">AGENT CAPABILITIES</div><p>Choose what agents can do on the published site.</p></div><span>{toolCount} active / {FULL_DIRECT_TOOL_COUNT} total</span></div>
+        <div className="section-label">Capabilities<span>{toolCount} of {FULL_DIRECT_TOOL_COUNT} tools</span></div>
         <div className="capability-list">
           {CAPABILITIES.map((capability) => {
             const checked = enabled.includes(capability.id)
@@ -439,8 +439,8 @@ export function App() {
             </label>
           })}
         </div>
-        {enabled.includes("shopifyCommerce") && <div className="integration-settings">
-          <div className="section-label">SHOPIFY STOREFRONT MCP + UCP</div>
+        {enabled.includes("shopifyCommerce") && <div className="card">
+          <div className="section-label">Shopify</div>
           <input value={shopifyDomain} onChange={(event) => setShopifyDomain(event.target.value)} placeholder="store.myshopify.com" aria-label="Shopify store domain" />
           <select value={shopifyMode} onChange={(event) => setShopifyMode(event.target.value as "auto" | "mcp" | "graphql")} aria-label="Shopify connection mode">
             <option value="auto">Auto · MCP with GraphQL fallback</option>
@@ -454,19 +454,19 @@ export function App() {
           {shopifyConnection.message && <p className={shopifyConnection.state === "error" ? "connection-error" : "connection-result"}>{shopifyConnection.message}</p>}
           <p>{validShopifyDomain && validShopifyProxyEndpoint && (shopifyMode === "graphql" || validShopifyAgentProfile) ? "Ready · 7 tools, native MCP/UCP discovery, safe hosted checkout." : "Enter a .myshopify.com domain, HTTPS UCP profile, and optional valid HTTPS proxy."}</p>
         </div>}
-        {enabled.includes("agenticPayments") && <div className="integration-settings">
-          <div className="section-label">CLOUDFLARE AGENTIC PAYMENTS</div>
+        {enabled.includes("agenticPayments") && <div className="card">
+          <div className="section-label">Cloudflare payments</div>
           <input value={paymentEndpoint} onChange={(event) => setPaymentEndpoint(event.target.value)} placeholder="https://your-worker.workers.dev" aria-label="Cloudflare Agentic Payments endpoint" />
           <p>{validPaymentEndpoint ? "Ready · MPP/x402 credentials stay with the paying agent." : "Enter the HTTPS URL of the AgentReady payments Worker."}</p>
         </div>}
-        {enabled.includes("payPerCrawl") && <div className="integration-settings">
-          <div className="section-label">CLOUDFLARE PAY PER CRAWL</div>
+        {enabled.includes("payPerCrawl") && <div className="card">
+          <div className="section-label">Cloudflare Pay Per Crawl</div>
           <input value={crawlPrice} onChange={(event) => setCrawlPrice(event.target.value)} inputMode="decimal" placeholder="USD per successful crawl" aria-label="USD price per successful crawl" />
           <label className="compact-check"><input type="checkbox" checked={allowAiTraining} onChange={(event) => setAllowAiTraining(event.target.checked)} />Allow paid AI training use</label>
-          <p>Requires a Cloudflare-proxied custom domain and Pay Per Crawl beta access.</p>
+          <p className="hint">Requires a Cloudflare-proxied custom domain and Pay Per Crawl beta access.</p>
         </div>}
-        {enabled.includes("cloudflareKnowledge") && <div className="integration-settings">
-          <div className="section-label">CLOUDFLARE INTELLIGENCE</div>
+        {enabled.includes("cloudflareKnowledge") && <div className="card">
+          <div className="section-label">Cloudflare intelligence</div>
           <input value={intelligenceEndpoint} onChange={(event) => setIntelligenceEndpoint(event.target.value)} placeholder="https://your-intelligence-worker.workers.dev" aria-label="Cloudflare intelligence endpoint" />
           <label className="compact-check"><input type="checkbox" checked={telemetryEnabled} onChange={(event) => setTelemetryEnabled(event.target.checked)} />Anonymous WebMCP tool analytics</label>
           <p>{validIntelligenceEndpoint ? "Ready · AI Search, provenance, analytics, and Browser Run verification." : "Enter the HTTPS URL of the AgentReady intelligence Worker."}</p>
@@ -484,9 +484,11 @@ export function App() {
       <footer>
         <div className="publish-summary"><span className={installed ? "ready" : "draft"}>{installed ? "Installed" : "Draft"}</span><span>{toolCount} active WebMCP tools</span></div>
         <div className="footer-actions">
-          <button className="publish-button" onClick={() => void publish()} disabled={!canPublish || !scan || effectiveEnabled.length === 0 || (deliveryMode !== "direct" && !validMcpPath) || !validOriginTrialToken || status !== "idle"}>{status === "publishing" ? "Installing…" : installed ? "Update tools" : "Install tools"}<span>→</span></button>
-          {installed && <button className="deploy-button" onClick={() => void deploySite()} disabled={!canDeploy || disabledByUser || status !== "idle"}>{status === "deploying" ? "Publishing site…" : "Publish site"}</button>}
-          {installed && <button className="remove-button" onClick={() => void removeTools()} disabled={!canPublish || status !== "idle"}>Remove tools</button>}
+          <button className="framer-button-primary" onClick={() => void publish()} disabled={!canPublish || !scan || effectiveEnabled.length === 0 || (deliveryMode !== "direct" && !validMcpPath) || !validOriginTrialToken || status !== "idle"}>{status === "publishing" ? "Installing…" : installed ? "Update tools" : "Install tools"}<span>→</span></button>
+          {installed && <div className="row">
+            <button onClick={() => void deploySite()} disabled={!canDeploy || disabledByUser || status !== "idle"}>{status === "deploying" ? "Publishing…" : "Publish site"}</button>
+            <button className="remove-button" onClick={() => void removeTools()} disabled={!canPublish || status !== "idle"}>Remove tools</button>
+          </div>}
           {publishedUrl && <a className="live-link" href={publishedUrl} target="_blank" rel="noreferrer">Open live site ↗</a>}
         </div>
       </footer>
