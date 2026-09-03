@@ -45,6 +45,11 @@ export interface RuntimeConfig {
   version: 1
   projectName: string
   generatedAt: string
+  delivery?: {
+    mode: "direct" | "hybrid" | "cloudflare"
+    mcpPath: string
+    contentCredentials: boolean
+  }
   capabilities: CapabilityId[]
   collections: CmsCollectionSnapshot[]
   shopify?: {

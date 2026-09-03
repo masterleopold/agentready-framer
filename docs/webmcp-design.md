@@ -9,6 +9,13 @@ AgentReady follows the Chrome WebMCP origin-trial API as a progressive enhanceme
 - Do not register both a declarative form tool and an imperative tool with the same purpose. Overlapping tools reduce selection reliability.
 - Keep registration capability-scoped and page-state-aware. Form and conversation tools are registered only when their corresponding UI exists.
 - Register through an `AbortController` so republishing or reinitializing the runtime cleanly removes the prior tool set.
+- Direct mode is fully browser-local. Hybrid reserves network-backed names for Cloudflare's Site MCP Server pack and leaves page-state actions local. Bridge mode leaves all registration to Cloudflare.
+
+## Cloudflare composition
+
+Cloudflare's Developer Preview injects the same-origin `/.webmcp/bridge.js` at the edge and composes selected packs into `document.modelContext`. AgentReady's Site MCP Server is therefore routed at the Framer custom domain's `/mcp`, not called through a cross-origin Worker URL. It supports MCP initialize, list, and call while rejecting cross-site browser requests and exposing no administrator tools.
+
+The gateway is appropriate for AI Search, provenance hashing, Shopify catalog/policy reads, payment-challenge discovery, and paid-content discovery. DOM inspection, form manipulation, conversational state, Shopify cart session state, and checkout handoff remain in the page. The optional Content Credentials pack is useful provenance metadata, but its current `signatureVerified: false` output must not be described as signature verification.
 
 ## Tool contract
 
@@ -32,4 +39,4 @@ Passwords, OTPs, payment credentials, wallet authentication, secure file selecti
 - WebMCP targets local, human-in-the-loop browser workflows; it is not a replacement for a remote crawler API.
 - The API is experimental and can change during the origin trial, so AgentReady keeps generation isolated in `src/runtime.ts`.
 
-References: [Chrome WebMCP](https://developer.chrome.com/docs/ai/webmcp), [Imperative API](https://developer.chrome.com/docs/ai/webmcp/imperative-api), [Declarative API](https://developer.chrome.com/docs/ai/webmcp/declarative-api), [best practices](https://developer.chrome.com/docs/ai/webmcp/best-practices), and [tool security](https://developer.chrome.com/docs/ai/webmcp/secure-tools).
+References: [Chrome WebMCP](https://developer.chrome.com/docs/ai/webmcp), [Imperative API](https://developer.chrome.com/docs/ai/webmcp/imperative-api), [Declarative API](https://developer.chrome.com/docs/ai/webmcp/declarative-api), [best practices](https://developer.chrome.com/docs/ai/webmcp/best-practices), [tool security](https://developer.chrome.com/docs/ai/webmcp/secure-tools), and [Cloudflare WebMCP](https://blog.cloudflare.com/webmcp/).

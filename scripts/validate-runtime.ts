@@ -313,5 +313,23 @@ assert.equal((await runFallback("update_shopify_cart", { lines: [{ merchandiseId
 assert.equal((await runFallback("get_shopify_cart")).transport, "graphql-fallback")
 assert.equal((await runFallback("prepare_shopify_checkout")).ready, true)
 
+function registrationsFor(delivery: NonNullable<RuntimeConfig["delivery"]>) {
+  const deliveryConfig: RuntimeConfig = { ...config, delivery }
+  const deliveryHtml = buildWebMcpCustomCode(deliveryConfig)
+  const deliverySource = deliveryHtml.replace(/^<script id="agentready-webmcp">\n/, "").replace(/\n<\/script>$/, "")
+  const deliveryDom = new JSDOM("<!doctype html><html><body><form><input name='name'></form></body></html>", { url: "https://delivery.example/", runScripts: "outside-only" })
+  const deliveryTools = new Map<string, RegisteredTool>()
+  Object.defineProperty(deliveryDom.window.document, "modelContext", { value: { registerTool(tool: RegisteredTool) { deliveryTools.set(tool.name, tool) } } })
+  Object.defineProperty(deliveryDom.window, "CSS", { value: { escape: (value: string) => value } })
+  deliveryDom.window.eval(deliverySource)
+  return deliveryTools
+}
+
+const hybridTools = registrationsFor({ mode: "hybrid", mcpPath: "/mcp", contentCredentials: true })
+for (const remote of ["search_site_knowledge", "answer_from_site", "get_content_provenance", "inspect_agentic_offers", "request_agentic_payment", "discover_paid_content", "search_shopify_catalog", "lookup_shopify_catalog", "get_shopify_product", "search_shopify_policies"]) assert.equal(hybridTools.has(remote), false, `Hybrid must reserve ${remote} for the gateway`)
+for (const local of ["search_site", "inspect_forms", "prefill_form", "get_shopify_cart", "update_shopify_cart", "prepare_shopify_checkout"]) assert.equal(hybridTools.has(local), true, `Hybrid must retain ${local} locally`)
+const cloudflareTools = registrationsFor({ mode: "cloudflare", mcpPath: "/mcp", contentCredentials: true })
+assert.equal(cloudflareTools.size, 0, "Cloudflare Bridge mode must not register browser-local tools")
+
 assert.equal(registered.size, 30)
-console.log("AgentReady runtime validation passed: 30 tools, native Shopify MCP/UCP, GraphQL fallback, forms, chat, payments, knowledge, provenance, telemetry, and crawl policy")
+console.log("AgentReady runtime validation passed: 30 direct tools, Hybrid de-duplication, Cloudflare Bridge isolation, Shopify MCP/UCP, forms, chat, payments, knowledge, provenance, telemetry, and crawl policy")

@@ -76,6 +76,9 @@ export function App() {
   const [telemetryEnabled, setTelemetryEnabled] = useState(true)
   const [crawlPrice, setCrawlPrice] = useState("0.01")
   const [allowAiTraining, setAllowAiTraining] = useState(false)
+  const [deliveryMode, setDeliveryMode] = useState<"direct" | "hybrid" | "cloudflare">("direct")
+  const [mcpPath, setMcpPath] = useState("/mcp")
+  const [contentCredentials, setContentCredentials] = useState(false)
   const [settingsLoaded, setSettingsLoaded] = useState(false)
 
   const refreshInstallStatus = useCallback(async () => {
@@ -126,6 +129,9 @@ export function App() {
           telemetryEnabled: boolean
           crawlPrice: string
           allowAiTraining: boolean
+          deliveryMode: "direct" | "hybrid" | "cloudflare"
+          mcpPath: string
+          contentCredentials: boolean
         }>
         if (Array.isArray(parsed.enabled)) setEnabled(parsed.enabled.filter((id): id is CapabilityId => CAPABILITIES.some((capability) => capability.id === id)))
         if (typeof parsed.shopifyDomain === "string") setShopifyDomain(parsed.shopifyDomain)
@@ -137,6 +143,9 @@ export function App() {
         if (typeof parsed.telemetryEnabled === "boolean") setTelemetryEnabled(parsed.telemetryEnabled)
         if (typeof parsed.crawlPrice === "string") setCrawlPrice(parsed.crawlPrice)
         if (typeof parsed.allowAiTraining === "boolean") setAllowAiTraining(parsed.allowAiTraining)
+        if (["direct", "hybrid", "cloudflare"].includes(parsed.deliveryMode ?? "")) setDeliveryMode(parsed.deliveryMode as "direct" | "hybrid" | "cloudflare")
+        if (typeof parsed.mcpPath === "string") setMcpPath(parsed.mcpPath)
+        if (typeof parsed.contentCredentials === "boolean") setContentCredentials(parsed.contentCredentials)
       } catch {
         framer.notify("Saved AgentReady settings could not be read.", { variant: "warning" })
       }
@@ -146,16 +155,17 @@ export function App() {
   useEffect(() => {
     if (!settingsLoaded || !canSaveSettings) return
     const timeout = window.setTimeout(() => {
-      void framer.setPluginData(SETTINGS_KEY, JSON.stringify({ enabled, shopifyDomain, shopifyMode, shopifyAgentProfile, shopifyToken, paymentEndpoint, intelligenceEndpoint, telemetryEnabled, crawlPrice, allowAiTraining }))
+      void framer.setPluginData(SETTINGS_KEY, JSON.stringify({ enabled, shopifyDomain, shopifyMode, shopifyAgentProfile, shopifyToken, paymentEndpoint, intelligenceEndpoint, telemetryEnabled, crawlPrice, allowAiTraining, deliveryMode, mcpPath, contentCredentials }))
     }, 250)
     return () => window.clearTimeout(timeout)
-  }, [allowAiTraining, canSaveSettings, crawlPrice, enabled, intelligenceEndpoint, paymentEndpoint, settingsLoaded, shopifyAgentProfile, shopifyDomain, shopifyMode, shopifyToken, telemetryEnabled])
+  }, [allowAiTraining, canSaveSettings, contentCredentials, crawlPrice, deliveryMode, enabled, intelligenceEndpoint, mcpPath, paymentEndpoint, settingsLoaded, shopifyAgentProfile, shopifyDomain, shopifyMode, shopifyToken, telemetryEnabled])
 
   const validShopifyDomain = /^[a-z0-9][a-z0-9-]*\.myshopify\.com$/i.test(shopifyDomain.trim().replace(/^https?:\/\//, "").replace(/\/$/, ""))
   const validShopifyAgentProfile = /^https:\/\/[a-z0-9.-]+(?::\d+)?(?:\/.*)?$/i.test(shopifyAgentProfile.trim())
   const validPaymentEndpoint = /^https:\/\/[a-z0-9.-]+(?::\d+)?(?:\/.*)?$/i.test(paymentEndpoint.trim())
   const validIntelligenceEndpoint = /^https:\/\/[a-z0-9.-]+(?::\d+)?(?:\/.*)?$/i.test(intelligenceEndpoint.trim())
   const validCrawlPrice = /^\d+(?:\.\d{1,6})?$/.test(crawlPrice) && Number(crawlPrice) > 0
+  const validMcpPath = /^\/(?!\/)[^?#]*$/.test(mcpPath.trim())
   const testShopifyConnection = async () => {
     if (!validShopifyDomain || (shopifyMode !== "graphql" && !validShopifyAgentProfile)) return
     const storeDomain = shopifyDomain.trim().replace(/^https?:\/\//, "").replace(/\/$/, "")
@@ -193,7 +203,7 @@ export function App() {
     if (id === "payPerCrawl") return validCrawlPrice
     return true
   }), [enabled, scan, shopifyMode, validCrawlPrice, validIntelligenceEndpoint, validPaymentEndpoint, validShopifyAgentProfile, validShopifyDomain])
-  const toolCount = effectiveEnabled.reduce((count, id) => count + ({
+  const directCount = effectiveEnabled.reduce((count, id) => count + ({
     siteSearch: 1,
     cmsSearch: 2,
     navigation: 1,
@@ -207,6 +217,10 @@ export function App() {
     cloudflareKnowledge: 3,
     formSubmit: 1,
   }[id] ?? 0), 0)
+  const remoteToolCounts: Partial<Record<CapabilityId, number>> = { shopifyCommerce: 4, agenticPayments: 2, payPerCrawl: 1, cloudflareKnowledge: 3 }
+  const remoteCount = 1 + effectiveEnabled.reduce((count, id) => count + (remoteToolCounts[id] ?? 0), 0)
+  const edgePackCount = deliveryMode !== "direct" && contentCredentials ? 2 : 0
+  const toolCount = (deliveryMode === "direct" ? directCount : deliveryMode === "hybrid" ? directCount + 1 : remoteCount) + edgePackCount
 
   const toggleCapability = (id: CapabilityId) => {
     setEnabled((current) => current.includes(id) ? current.filter((capability) => capability !== id) : [...current, id])
@@ -222,6 +236,7 @@ export function App() {
         version: 1,
         projectName: scan.projectName,
         generatedAt: new Date().toISOString(),
+        delivery: { mode: deliveryMode, mcpPath: validMcpPath ? mcpPath.trim() : "/mcp", contentCredentials },
         capabilities: effectiveEnabled,
         collections: scan.collections,
         shopify: validShopifyDomain ? {
@@ -298,6 +313,22 @@ export function App() {
         </div> : <div className="scan-skeleton" />}
       </section>
 
+      <section className="integration-settings delivery-settings">
+        <div className="section-label">WEBMCP DELIVERY</div>
+        <select value={deliveryMode} onChange={(event) => setDeliveryMode(event.target.value as "direct" | "hybrid" | "cloudflare")} aria-label="WebMCP delivery mode">
+          <option value="direct">Direct · Framer Custom Code</option>
+          <option value="hybrid">Hybrid · Local UI + Cloudflare /mcp</option>
+          <option value="cloudflare">Cloudflare Bridge · Remote tools only</option>
+        </select>
+        {deliveryMode !== "direct" && <>
+          <input value={mcpPath} onChange={(event) => setMcpPath(event.target.value)} placeholder="/mcp" aria-label="Same-origin MCP path" />
+          <label className="compact-check"><input type="checkbox" checked={contentCredentials} onChange={(event) => setContentCredentials(event.target.checked)} />Enable Cloudflare Content Credentials pack</label>
+          <p className={validMcpPath ? "connection-result" : "connection-error"}>{validMcpPath ? "Configure this same-origin path and selected packs in Cloudflare Agent Readiness → WebMCP." : "Use a same-origin absolute path such as /mcp."}</p>
+          {contentCredentials && <p>C2PA tools decode embedded provenance metadata; the preview pack reports signatureVerified: false and is not cryptographic verification.</p>}
+        </>}
+        {deliveryMode === "direct" && <p>All tools run in the visitor browser. Hybrid is recommended when the site is behind Cloudflare.</p>}
+      </section>
+
       <section className="capabilities">
         <div className="section-heading"><div><div className="section-label">AGENT CAPABILITIES</div><p>Choose what agents can do on the published site.</p></div><span>{toolCount} tools</span></div>
         <div className="capability-list">
@@ -353,7 +384,7 @@ export function App() {
       <footer>
         <div className="publish-summary"><span className={installed ? "ready" : "draft"}>{installed ? "Installed" : "Draft"}</span><span>{toolCount} WebMCP tools</span></div>
         <div className="footer-actions">
-          <button className="publish-button" onClick={() => void publish()} disabled={!canPublish || !scan || effectiveEnabled.length === 0 || status !== "idle"}>{status === "publishing" ? "Installing…" : installed ? "Update tools" : "Install tools"}<span>→</span></button>
+          <button className="publish-button" onClick={() => void publish()} disabled={!canPublish || !scan || effectiveEnabled.length === 0 || (deliveryMode !== "direct" && !validMcpPath) || status !== "idle"}>{status === "publishing" ? "Installing…" : installed ? "Update tools" : "Install tools"}<span>→</span></button>
           {installed && <button className="deploy-button" onClick={() => void deploySite()} disabled={!canDeploy || disabledByUser || status !== "idle"}>{status === "deploying" ? "Publishing site…" : "Publish site"}</button>}
           {installed && <button className="remove-button" onClick={() => void removeTools()} disabled={!canPublish || status !== "idle"}>Remove tools</button>}
           {publishedUrl && <a className="live-link" href={publishedUrl} target="_blank" rel="noreferrer">Open live site ↗</a>}

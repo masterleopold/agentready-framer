@@ -17,6 +17,7 @@ AgentReady separates preparation, external actions, and irreversible actions. A 
 | Cloudflare Agentic Payments | discover offers and surface MPP/x402 HTTP 402 challenges, required retry header, verified order IDs, and receipts | The paying agent owns its scoped key and fulfills the challenge outside the page. No wallet private key or payment credential is placed in Framer or WebMCP arguments |
 | Cloudflare Pay Per Crawl | expose crawler price, permitted purposes, discovery metadata, a JSON Schema, structured JSON-LD content, content digest, license, provenance, and evidence guidance | Cloudflare zone setup performs enforcement and billing; AgentReady generates JSON while Pay Per Crawl itself is content-type agnostic |
 | Cloudflare intelligence | AI Search hybrid retrieval and cited answers, same-origin SHA-256 attestations, anonymous per-tool metrics, and Browser Run release verification | Cloudflare account management and admin verification remain server-side; prompts, form values, payment data, and chat text are not analytics fields |
+| Cloudflare WebMCP bridge | Edge-inject the WebMCP bridge and compose the same-origin Site MCP Server and Content Credentials packs | Hybrid keeps UI state local; the preview C2PA pack decodes metadata but does not cryptographically verify signatures |
 
 ## Tool inventory
 
@@ -32,6 +33,8 @@ The full configured runtime registers 30 tools:
 - Knowledge and trust: `search_site_knowledge`, `answer_from_site`, `get_content_provenance`
 
 `npm test` runs all 30 tools against a browser fixture containing a multi-step application, address fields, radios, checkboxes, date/time inputs, a file input, hidden breakpoint duplicates, a conversational UI, a sensitive checkout, native Shopify MCP/UCP endpoints with discovery, an MPP challenge, paid-crawl policy, AI Search results, a cited answer, and a provenance attestation.
+
+Hybrid adds `agentready_edge_status`, moves ten network-backed tools to the same-origin `/mcp` gateway, and keeps the remaining browser-state tools local. Cloudflare Bridge mode exposes up to 11 gateway tools without registering local tools. Enabling Cloudflare's external Content Credentials pack adds its two image-provenance tools; these are counted as expected edge tools in the plugin but are activated in the Cloudflare dashboard.
 
 ## Known limits
 

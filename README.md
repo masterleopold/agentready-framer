@@ -2,7 +2,7 @@
 
 Turn a Framer site into an agent-native website without writing WebMCP code.
 
-AgentReady scans a Framer project, suggests useful agent capabilities, and installs an imperative WebMCP runtime into the published site through Framer Custom Code.
+AgentReady scans a Framer project, suggests useful agent capabilities, and installs an imperative WebMCP runtime through Framer Custom Code, Cloudflare's edge-injected WebMCP bridge, or both.
 
 **Live demo:** [make-aspects-824660.framer.app/agent-ready](https://make-aspects-824660.framer.app/agent-ready)
 
@@ -31,7 +31,9 @@ The complete configured runtime can publish 30 focused tools:
 Scan project → Review capabilities → Publish tools → Test with an agent
 ```
 
-The plugin reads the current canvas and CMS collections, generates a compact runtime configuration, and installs a top-level `<script>` using `framer.setCustomCode()`. No separate MCP server is required for the core runtime; Shopify and Cloudflare are optional integrations.
+The plugin reads the current canvas and CMS collections and generates a compact runtime configuration. **Direct** installs all tools as a top-level `<script>` with `framer.setCustomCode()`. **Hybrid** keeps UI-bound DOM, form, chat, cart, and checkout-handoff tools in the browser while Cloudflare's same-origin `/mcp` gateway provides knowledge, catalog, payment-challenge, and paid-content tools. **Cloudflare Bridge** registers only gateway tools. Hybrid is recommended for a Cloudflare-proxied custom domain because browser state remains local while server credentials and integrations remain at the edge.
+
+Cloudflare's Developer Preview injects `/.webmcp/bridge.js` with selected packs through HTMLRewriter. Configure **Agent Readiness → WebMCP**, select the Site MCP Server pack with `/mcp`, and optionally enable Content Credentials. AgentReady prevents Hybrid duplicates by reserving gateway-backed tool names. Cloudflare's current Content Credentials pack decodes embedded C2PA metadata but reports `signatureVerified: false`; do not present that result as cryptographic verification.
 
 The WebMCP runtime follows Chrome's imperative API guidance: capability-scoped tools, strict runtime validation, read-only and untrusted-content annotations, abortable registration, visible UI state changes, and human review for sensitive actions. Standard declarative form annotations remain useful for simple native forms, while AgentReady uses imperative tools for Framer's custom controls, multi-step state, chat, commerce, and security boundaries.
 
@@ -39,7 +41,7 @@ The WebMCP runtime follows Chrome's imperative API guidance: capability-scoped t
 
 The public Framer Marketplace package is produced with `npm run pack`. Enterprise teams can alternatively self-host the static `dist` output as a Workspace Plugin on Vercel or Cloudflare Pages; `framer.json` must remain at the deployment root. This plugin UI hosting is separate from the optional Cloudflare Workers used for payments, uploads, and paid crawl delivery.
 
-See [the request coverage audit](docs/request-coverage.md) for implementation and launch status, [the capability matrix](docs/capability-matrix.md) for the full 28-tool inventory and safety boundaries, and [the WebMCP design notes](docs/webmcp-design.md) for the Chrome API decisions.
+See [the request coverage audit](docs/request-coverage.md) for implementation and launch status, [the capability matrix](docs/capability-matrix.md) for the tool inventory and safety boundaries, and [the WebMCP design notes](docs/webmcp-design.md) for the Chrome API decisions.
 
 ## Development
 
@@ -86,6 +88,8 @@ The live test fetches the actual Framer HTML and executes installed Custom Code 
 
 The ChatGPT built-in browser currently discovers imperative tools registered by top-level page JavaScript. AgentReady intentionally does not rely on declarative form tools or iframe registration.
 
+For Cloudflare delivery, deploy `cloudflare/wrangler.mcp.jsonc` on the Framer custom domain's `/mcp` route, then enable the matching path in Cloudflare WebMCP. Verify that the published HTML contains `/.webmcp/bridge.js`, call MCP `initialize` and `tools/list`, and run the Intelligence Worker's administrator-only `/v1/verify`. Its Browser Run check accepts either AgentReady Custom Code or Cloudflare's injected bridge.
+
 ## Shopify connection
 
 Shopify **Auto** mode discovers the standard Storefront MCP tools at `/api/mcp` and the UCP catalog tools at `/api/ucp/mcp`, caches each advertised schema for five minutes, and adapts cart line arguments to the discovered `update_cart` schema. UCP requests include the configured HTTPS agent profile. If a store restricts MCP, product and cart operations fall back to Storefront GraphQL; authoritative policy search and UCP-only behavior report themselves unavailable instead of inventing an answer.
@@ -103,6 +107,7 @@ The default profile URL is Shopify's development example and should be replaced 
 - Shopify cart IDs stay in browser session storage and are summarized without their secret key.
 - Shopify MCP tools are discovered per store, UCP calls include an HTTPS agent profile, and catalog context is restricted to non-identifying localization and intent hints.
 - Cloudflare payment private keys stay in the paying Agent/Worker, never in Framer Custom Code.
+- The MCP gateway rejects cross-site browser requests, JSON-RPC batches, non-JSON bodies, oversized payloads, and unconfigured tools; it exposes no administration methods.
 
 ## Current limitations
 

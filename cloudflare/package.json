@@ -8,10 +8,12 @@
     "dev:payments": "wrangler dev --config wrangler.payments.jsonc",
     "dev:crawl": "wrangler dev --config wrangler.crawl.jsonc",
     "dev:intelligence": "wrangler dev --config wrangler.intelligence.jsonc --remote",
+    "dev:mcp": "wrangler dev --config wrangler.mcp.jsonc",
     "deploy": "wrangler deploy",
     "deploy:payments": "wrangler deploy --config wrangler.payments.jsonc",
     "deploy:crawl": "wrangler deploy --config wrangler.crawl.jsonc",
     "deploy:intelligence": "wrangler deploy --config wrangler.intelligence.jsonc",
+    "deploy:mcp": "wrangler deploy --config wrangler.mcp.jsonc",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {

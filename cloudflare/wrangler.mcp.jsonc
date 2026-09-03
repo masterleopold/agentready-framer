@@ -1,0 +1,16 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "agentready-mcp-gateway",
+  "main": "src/mcp-gateway.ts",
+  "compatibility_date": "2026-09-03",
+  "vars": {
+    "ALLOWED_ORIGINS": "https://example.framer.website",
+    "INTELLIGENCE_ENDPOINT": "https://agentready-intelligence.example.workers.dev",
+    "PAYMENTS_ENDPOINT": "https://agentready-payments.example.workers.dev",
+    "SHOPIFY_STORE_DOMAIN": "example.myshopify.com",
+    "SHOPIFY_AGENT_PROFILE": "https://shopify.dev/ucp/agent-profiles/examples/2026-08-25/valid-with-capabilities.json",
+    "PAID_CONTENT_PATH": "/agentready/content.json",
+    "CONTENT_LICENSE_URL": "https://example.framer.website/terms"
+  },
+  "observability": { "enabled": true }
+}

@@ -166,12 +166,13 @@ async function verifySite(request: Request, env: Env, origin: string) {
   const html = snapshot.result.content ?? ""
   const markdown = snapshot.result.markdown ?? ""
   const customCode = /id=["']agentready-webmcp["']/.test(html)
+  const cloudflareBridge = /\/\.webmcp\/bridge\.js/.test(html)
   const forms = (html.match(/<form\b/gi) ?? []).length
   const headings = (markdown.match(/^#{1,6}\s+/gm) ?? []).length
   const accessibilityNodes = countAccessibilityNodes(snapshot.result.accessibilityTree)
-  const checks = { https: target.protocol === "https:", customCode, content: markdown.length > 100, accessibility: accessibilityNodes > 10 }
+  const checks = { https: target.protocol === "https:", webmcpDelivery: customCode || cloudflareBridge, content: markdown.length > 100, accessibility: accessibilityNodes > 10 }
   const score = Object.values(checks).filter(Boolean).length * 25
-  return json({ verifiedAt: new Date().toISOString(), url: target.href, score, checks, forms, headings, accessibilityNodes, browserMs: response.headers.get("x-browser-ms-used") }, 200, cors(origin))
+  return json({ verifiedAt: new Date().toISOString(), url: target.href, score, checks, delivery: { customCode, cloudflareBridge }, forms, headings, accessibilityNodes, browserMs: response.headers.get("x-browser-ms-used") }, 200, cors(origin))
 }
 
 async function syncKnowledge(request: Request, env: Env, origin: string) {

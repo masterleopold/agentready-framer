@@ -9,6 +9,18 @@ The Cloudflare Worker adds a secure, optional coordination layer to a Framer sto
 
 Payment credentials, passwords, OTPs, private Shopify tokens, and full form values must never be recorded as event summaries.
 
+## Same-origin WebMCP gateway
+
+`src/mcp-gateway.ts` implements the MCP JSON-RPC endpoint used by Cloudflare's Site MCP Server pack. It exposes only public, capability-scoped tools: edge status, AI Search/provenance, payment offer discovery and 402 challenge retrieval, paid JSON discovery, and read-only Shopify Storefront MCP/UCP catalog and policy calls. Stateful DOM, form, chat, cart, and checkout-handoff tools remain browser-local in AgentReady Hybrid mode.
+
+1. Put the Framer custom domain behind Cloudflare and replace the example values in `wrangler.mcp.jsonc`.
+2. Deploy the Worker with `npm run deploy:mcp` and route it to the same origin at `/mcp` (for example `site.example/mcp*`). Do not use a cross-origin Workers URL in the plugin.
+3. In Cloudflare Dashboard open **Agent Readiness → WebMCP**, enable WebMCP, add the Site MCP Server pack, and set its MCP URL to `/mcp`.
+4. Optionally enable the Content Credentials pack. Its Developer Preview tools parse C2PA metadata but do not cryptographically verify the signature (`signatureVerified: false`).
+5. Choose **Hybrid** in the Framer plugin and use the identical `/mcp` path. Publish and verify that HTML contains `/.webmcp/bridge.js`.
+
+The gateway validates same-origin/allowlisted `Origin`, `Sec-Fetch-Site`, content type, payload size, JSON-RPC shape, tool availability, same-origin provenance targets, Shopify domains, and offer IDs. It forwards no caller authorization or payment credentials. A payment-aware client fulfills the returned scoped challenge outside the page.
+
 ## Deploy
 
 1. Replace `ALLOWED_ORIGINS` and `bucket_name` in `wrangler.jsonc`.

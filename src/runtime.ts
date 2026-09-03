@@ -23,6 +23,12 @@ export function buildWebMcpCustomCode(config: RuntimeConfig) {
   const controller = new AbortController();
   window.__agentReadyController = controller;
   const enabled = new Set(config.capabilities);
+  const delivery = config.delivery || { mode: "direct", mcpPath: "/mcp", contentCredentials: false };
+  const remoteTools = new Set([
+    "search_site_knowledge", "answer_from_site", "get_content_provenance",
+    "inspect_agentic_offers", "request_agentic_payment", "discover_paid_content",
+    "search_shopify_catalog", "lookup_shopify_catalog", "get_shopify_product", "search_shopify_policies"
+  ]);
   const intelligenceEndpoint = config.cloudflareIntelligence?.endpoint?.replace(new RegExp("/$"), "");
   const telemetryEnabled = Boolean(intelligenceEndpoint && config.cloudflareIntelligence?.telemetry);
   const telemetrySession = (() => {
@@ -40,6 +46,7 @@ export function buildWebMcpCustomCode(config: RuntimeConfig) {
     }).catch(() => undefined);
   };
   const register = (tool) => {
+    if (delivery.mode === "cloudflare" || (delivery.mode === "hybrid" && remoteTools.has(tool.name))) return;
     const execute = tool.execute;
     modelContext.registerTool({ ...tool, execute: async (input, context) => {
       const started = Date.now();
@@ -391,8 +398,8 @@ export function buildWebMcpCustomCode(config: RuntimeConfig) {
 
   if (enabled.has("formSubmit")) register({ name: "submit_form", description: "Submit a reviewed non-payment, non-authentication form. Checkout and sensitive forms are always refused.", inputSchema: { type: "object", properties: { formIndex: { type: "integer", minimum: 0, default: 0 } }, additionalProperties: false }, annotations: { destructiveHint: true, openWorldHint: true }, execute: async ({ formIndex = 0 }) => { const form = getForm(formIndex); if (!(form instanceof HTMLFormElement)) return { submitted: false, reason: "HTML form not found", formIndex }; const descriptor = describeForm(form, formIndex); if (descriptor.payment || descriptor.fields.some((field) => field.sensitive)) return { submitted: false, reason: "Payment, authentication, and sensitive forms require human submission", requiresUserAction: true, formIndex }; if (!form.reportValidity()) return { submitted: false, reason: "Form validation failed", formIndex }; form.requestSubmit(); return { submitted: true, formIndex }; } });
 
-  window.dispatchEvent(new CustomEvent("agentready:ready", { detail: { capabilities: config.capabilities, generatedAt: config.generatedAt } }));
-  console.info("[AgentReady] WebMCP tools registered", config.capabilities);
+  window.dispatchEvent(new CustomEvent("agentready:ready", { detail: { capabilities: config.capabilities, delivery, generatedAt: config.generatedAt } }));
+  console.info("[AgentReady] WebMCP delivery ready", delivery.mode, config.capabilities);
 })();
 </script>`
 }

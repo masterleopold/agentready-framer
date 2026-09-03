@@ -11,6 +11,7 @@ This is the implementation audit against the product requirements for AgentReady
 | Public source and installable package | Implemented | GitHub repository, `npm run build`, and `npm run pack` |
 | Framer Marketplace distribution | External setup | Package is ready; publication requires Framer review and owner submission |
 | Self-host plugin UI on Vercel or Cloudflare | Implemented | Static `dist` is deployable while optional Workers remain separate services |
+| Cloudflare WebMCP edge delivery | Implemented with external setup | Direct/Hybrid/Bridge modes, same-origin `/mcp` Worker, remote/local tool separation, and C2PA pack guidance; Cloudflare zone activation remains external |
 | Public Framer demo with the plugin installed | Implemented | Live Framer page plus `npm run test:live` |
 | Sell AgentReady from its own WebMCP-enabled demo | Implemented with external setup | Tiered checkout UI and tools exist; a real HTTPS checkout URL/product is required to take money |
 
@@ -44,7 +45,8 @@ This is the implementation audit against the product requirements for AgentReady
 | Cloudflare AI Search knowledge | Implemented with external setup | Browser Run renders allowlisted Framer URLs; an administrator-only sync route uploads Markdown with source, digest, retrieval time, and license metadata; three public WebMCP tools provide search, cited answers, and provenance |
 | Cloudflare AI Gateway chatbot path | Implemented with external setup | Optional OpenAI-compatible gateway URL/model/token generates grounded answers from retrieved AI Search chunks; secrets remain Worker-only |
 | WebMCP analytics | Implemented with external setup | Analytics Engine records only origin, tool name, success/error, anonymous session hash, duration, and count; arguments and returned content are excluded |
-| Browser Run readiness verification | Implemented with external setup | Administrator-only snapshot verifies HTTPS, installed Custom Code, rendered content, accessibility tree, forms, and headings for allowlisted origins |
+| Browser Run readiness verification | Implemented with external setup | Administrator-only snapshot verifies HTTPS, AgentReady Custom Code or Cloudflare's injected bridge, rendered content, accessibility tree, forms, and headings for allowlisted origins |
+| Content Credentials / C2PA | Implemented with external setup | Plugin configures the expected Cloudflare pack surface and documents its boundary; the current preview decodes metadata but reports `signatureVerified: false` |
 
 ## WebMCP conformance and verification
 
@@ -55,8 +57,10 @@ This is the implementation audit against the product requirements for AgentReady
 - Hidden Framer breakpoint duplicates and inactive steps are excluded.
 - Async network and chat operations accept the WebMCP execution cancellation signal.
 - Sensitive values are never returned, filled, persisted, or placed in tool arguments.
+- Hybrid mode reserves gateway-backed names so the Cloudflare bridge and local runtime never register duplicate tools.
+- The gateway enforces same-origin browser access, bounded JSON-only JSON-RPC, configuration-filtered tools, and no public admin methods.
 - Isolated tests exercise all 30 optional tools; live tests execute the runtime installed in Framer Custom Code.
-- CI verifies the plugin, runtime, package, Cloudflare TypeScript, and all four Worker bundles.
+- CI verifies the plugin, runtime, package, Cloudflare TypeScript, gateway behavior, and all five Worker bundles.
 
 ## Remaining launch inputs
 
@@ -67,5 +71,6 @@ These are operational dependencies rather than missing product code:
 3. Enroll the production zone in Pay Per Crawl, deploy the crawl Worker/route, and replace the example license URL.
 4. Configure Turnstile and R2 if the optional upload handoff is demonstrated.
 5. Create the AI Search instance/namespace and Analytics Engine dataset, deploy the intelligence Worker, set its admin secret, and optionally configure an AI Gateway chat endpoint.
-6. Submit the packed plugin for Framer Marketplace review.
-7. Record the demo video and complete the Devpost submission before the official deadline.
+6. Route the MCP gateway at the Framer custom domain's `/mcp`, enable Cloudflare Agent Readiness → WebMCP, and select the Site MCP Server and optional Content Credentials packs.
+7. Submit the packed plugin for Framer Marketplace review.
+8. Record the demo video and complete the Devpost submission before the official deadline.
