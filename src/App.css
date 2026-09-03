@@ -217,6 +217,30 @@ h1 {
 .integration-settings p.connection-error { color: #ff8c82; }
 .compact-check { display: flex; align-items: center; gap: 7px; color: rgba(255, 255, 255, .66); font-size: 9px; }
 .compact-check input { width: 13px; height: 13px; margin: 0; accent-color: #0099ff; }
+.identity-notice {
+  padding: 10px;
+  display: grid;
+  gap: 5px;
+  color: #ffc46e;
+  background: rgba(255, 164, 46, .08);
+  border: 1px solid rgba(255, 164, 46, .22);
+  border-radius: 9px;
+}
+.identity-notice.ready { color: #65dca0; background: rgba(50, 214, 155, .07); border-color: rgba(50, 214, 155, .2); }
+.identity-notice strong { font-size: 10px; font-weight: 550; }
+.identity-notice span { color: rgba(255, 255, 255, .55); font-size: 9px; line-height: 1.4; }
+.identity-notice button {
+  justify-self: start;
+  padding: 7px 9px;
+  color: #000;
+  background: #fff;
+  border: 0;
+  border-radius: 7px;
+  font-size: 9px;
+  font-weight: 550;
+  cursor: pointer;
+}
+.identity-notice button:hover { background: #e8e8e8; }
 
 .notice { padding: 10px 11px; border-radius: 9px; font-size: 10px; line-height: 1.4; }
 .notice.warning { color: #ffc46e; background: rgba(255, 164, 46, .1); border: 1px solid rgba(255, 164, 46, .25); }

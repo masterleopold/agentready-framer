@@ -62,7 +62,7 @@ Chrome's origin trial supports both imperative and declarative tools. AgentReady
 
 ## Try the live demo
 
-Open [agentready.framer.website](https://agentready.framer.website) in a WebMCP-capable agent browser and try prompts such as:
+Open [agentready.framer.website](https://agentready.framer.website) in ChatGPT's in-app browser or Chrome 149+ with WebMCP enabled and try prompts such as:
 
 The direct `framer.website` URL cannot set the WebMCP response headers on the demo's current free Framer plan. For strict production conformance, proxy a custom domain through the included Cloudflare Worker (which adds `Origin-Agent-Cluster: ?1` and `Permissions-Policy: tools=(self)`) or configure equivalent Framer custom headers on a supported plan.
 
@@ -73,6 +73,18 @@ The direct `framer.website` URL cannot set the WebMCP response headers on the de
 - “Find the AgentReady plugin offer and explain the available purchase or payment handoff.”
 
 The demo contains real multi-step forms, option groups, date/time inputs, file-picker handoff, a conversational UI, safe checkout, Shopify and Cloudflare examples, and the AgentReady runtime installed through Framer Custom Code.
+
+### Verify with ChatGPT Site tools
+
+The challenge judge path uses **Site tools**, ChatGPT's WebMCP implementation. Use the latest ChatGPT desktop app, select GPT-5.6 Sol or GPT-5.6 Terra, and enable **Settings → Browser → Permissions → Enable site tools**. Enterprise and Edu workspaces, GPT-5.6 Luna, declarative form tools, and tools registered inside iframes are not currently supported by ChatGPT's in-app browser.
+
+1. Open `https://agentready.framer.website/?judge=20260904` in ChatGPT's in-app browser.
+2. Open **Site tools → Available site tools** in the address bar and confirm that the page exposes 30 tools.
+3. Ask: “Use `search_site` to find the AgentReady purchase section.”
+4. Ask: “Use `inspect_forms`, then `prefill_form` with name Demo Agent and email agent@example.com. Do not submit.”
+5. Ask: “Search Shopify for AgentReady, compare the three plans, add Studio to the cart, and stop before checkout.”
+
+The expected boundary is deliberate: discovery, form preparation, and cart preparation are available to the agent; form submission, payment credentials, and final purchase confirmation remain with the person. If the browser shows stale content, reload with a new query parameter.
 
 ## Run the Framer plugin
 
@@ -93,6 +105,8 @@ In Framer, enable Plugin Developer Tools and choose **Open Development Plugin**.
 ```text
 Scan project → Review capabilities → Choose delivery → Install tools → Publish → Test
 ```
+
+Framer isolates plugin data and Custom Code by plugin identity. A localhost development build therefore cannot read a runtime previously installed by a different identity such as **API Plugin**. On the AgentReady demo project, use **Load live demo settings** to restore the public Shopify and Cloudflare endpoints without publishing. Before installing from the development plugin, remove the separate **API Plugin** Custom Code entry; otherwise Framer will publish two runtimes. Keep exactly one `agentready-webmcp` installation.
 
 For Chrome 149+ live testing, register the published first-party origin in the WebMCP origin trial and paste the complete token into **Chrome 149+ Origin Trial**. AgentReady installs it as an `origin-trial` meta element at the start of the document head. The token is origin-bound, public activation metadata—not a secret. For local development, leave it empty and enable `chrome://flags/#enable-webmcp-testing` instead.
 

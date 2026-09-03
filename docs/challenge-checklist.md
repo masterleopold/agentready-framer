@@ -1,10 +1,10 @@
 # WebMCP Challenge submission checklist
 
-Checked against the official OpenAI challenge page, Devpost overview, rules, and resources on September 3, 2026.
+Checked against the official OpenAI challenge page, Devpost overview, rules, resources, and the September 4 deadline-extension notice on September 4, 2026.
 
 ## Deadline and eligibility
 
-- Submit before September 3, 2026 at 1:00 PM Pacific Time (September 4 at 5:00 AM JST).
+- The deadline was extended by 12 hours because of an OpenAI outage. Submit before September 4, 2026 at 1:00 AM Pacific Time (September 4 at 5:00 PM JST).
 - Entrants must be at least the age of majority where they live and reside in an eligible OpenAI API-supported territory.
 - The official rules control if any other challenge copy conflicts with them.
 
@@ -40,6 +40,16 @@ Checked against the official OpenAI challenge page, Devpost overview, rules, and
 2. Confirm the Origin Trial and WebMCP surface in Chrome DevTools, then inspect `window.__agentReadyRegistration` for zero failures.
 3. Run a read-only discovery tool and a visible form-preparation tool; demonstrate that a declarative `toolname` form is not duplicated.
 4. Show an oversized-content query returning bounded retry guidance, cancellation of a waiting call, and refusal of payment/sensitive submission.
+
+## ChatGPT judge path
+
+1. Use the latest ChatGPT desktop app with GPT-5.6 Sol or GPT-5.6 Terra.
+2. Enable **Settings → Browser → Permissions → Enable site tools**.
+3. Open `https://agentready.framer.website/?judge=20260904` in the in-app browser.
+4. Open **Site tools → Available site tools** and confirm the page exposes 30 imperative tools.
+5. Invoke `search_site`, `inspect_forms`, and `prefill_form`; verify that the visible page changes and no form is submitted.
+6. Invoke the Shopify search/cart flow and stop before checkout or payment confirmation.
+7. Capture the tool inventory and successful calls in the public demo video.
 
 ## Freeze rule
 

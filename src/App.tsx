@@ -22,7 +22,15 @@ const CAPABILITIES: Array<{ id: CapabilityId; title: string; description: string
 ]
 
 const DEFAULT_CAPABILITIES: CapabilityId[] = ["siteSearch", "cmsSearch", "navigation", "formFill", "conversation", "checkoutAssist"]
+const ALL_CAPABILITIES: CapabilityId[] = CAPABILITIES.map(({ id }) => id)
 const SETTINGS_KEY = "agentready:settings:v1"
+const AGENTREADY_DEMO_SETTINGS = {
+  shopifyDomain: "tkigey-1f.myshopify.com",
+  shopifyAgentProfile: "https://agentready-intelligence.hara-7b1.workers.dev/.well-known/ucp-agent.json",
+  shopifyProxyEndpoint: "https://agentready-intelligence.hara-7b1.workers.dev/v1/shopify/mcp",
+  paymentEndpoint: "https://agentready-agentic-payments.hara-7b1.workers.dev",
+  intelligenceEndpoint: "https://agentready-intelligence.hara-7b1.workers.dev",
+} as const
 const DIRECT_TOOL_COUNTS: Record<CapabilityId, number> = {
   siteSearch: 1,
   cmsSearch: 2,
@@ -280,6 +288,31 @@ export function App() {
     setEnabled((current) => current.includes(id) ? current.filter((capability) => capability !== id) : [...current, id])
   }
 
+  const demoSettingsComplete = shopifyDomain === AGENTREADY_DEMO_SETTINGS.shopifyDomain
+    && shopifyAgentProfile === AGENTREADY_DEMO_SETTINGS.shopifyAgentProfile
+    && shopifyProxyEndpoint === AGENTREADY_DEMO_SETTINGS.shopifyProxyEndpoint
+    && paymentEndpoint === AGENTREADY_DEMO_SETTINGS.paymentEndpoint
+    && intelligenceEndpoint === AGENTREADY_DEMO_SETTINGS.intelligenceEndpoint
+
+  const restoreAgentReadyDemoSettings = () => {
+    setEnabled(ALL_CAPABILITIES)
+    setShopifyDomain(AGENTREADY_DEMO_SETTINGS.shopifyDomain)
+    setShopifyMode("auto")
+    setShopifyAgentProfile(AGENTREADY_DEMO_SETTINGS.shopifyAgentProfile)
+    setShopifyProxyEndpoint(AGENTREADY_DEMO_SETTINGS.shopifyProxyEndpoint)
+    setShopifyToken("")
+    setPaymentEndpoint(AGENTREADY_DEMO_SETTINGS.paymentEndpoint)
+    setIntelligenceEndpoint(AGENTREADY_DEMO_SETTINGS.intelligenceEndpoint)
+    setTelemetryEnabled(true)
+    setCrawlPrice("0.01")
+    setAllowAiTraining(false)
+    setDeliveryMode("direct")
+    setMcpPath("/mcp")
+    setContentCredentials(false)
+    setShopifyConnection({ state: "idle", message: "" })
+    framer.notify("Loaded the live AgentReady demo settings. Nothing was published.", { variant: "success" })
+  }
+
   const publish = async () => {
     if (!scan) return
     setStatus("publishing")
@@ -372,6 +405,11 @@ export function App() {
 
       <section className="integration-settings delivery-settings">
         <div className="section-label">WEBMCP DELIVERY</div>
+        {scan?.projectName === "AgentReady" && !installed && <div className={`identity-notice ${demoSettingsComplete ? "ready" : ""}`}>
+          <strong>{demoSettingsComplete ? "Demo settings restored" : "Existing runtime uses another plugin identity"}</strong>
+          <span>{demoSettingsComplete ? "Settings are saved locally. Remove the separate API Plugin Custom Code before installing from this development plugin." : "Framer isolates settings and Custom Code by plugin identity, so this development build cannot read the live API Plugin configuration."}</span>
+          {!demoSettingsComplete && <button type="button" onClick={restoreAgentReadyDemoSettings}>Load live demo settings</button>}
+        </div>}
         <select value={deliveryMode} onChange={(event) => setDeliveryMode(event.target.value as "direct" | "hybrid" | "cloudflare")} aria-label="WebMCP delivery mode">
           <option value="direct">Direct · Framer Custom Code</option>
           <option value="hybrid">Hybrid · Local UI + Cloudflare /mcp</option>

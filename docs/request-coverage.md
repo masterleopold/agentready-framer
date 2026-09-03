@@ -78,5 +78,5 @@ These are operational dependencies rather than missing product code:
 5. Create the AI Search instance/namespace and Analytics Engine dataset, deploy the intelligence Worker, set its admin secret, and optionally configure an AI Gateway chat endpoint.
 6. Route the MCP gateway at the Framer custom domain's `/mcp`, enable Cloudflare Agent Readiness → WebMCP, and select the Site MCP Server and optional Content Credentials packs.
 7. Upload the packed plugin with the prepared listing media and publish it from Framer Community.
-8. Record the demo video and complete the Devpost submission before the official deadline.
-9. Register the final published origin in Chrome's WebMCP origin trial, install the token with AgentReady, and verify it plus the registered tools in Chrome DevTools or the Model Context Tool Inspector.
+8. Verify at least one real tool call in ChatGPT's in-app browser using Site tools, then record the under-three-minute public YouTube demo and complete the Devpost submission before the extended September 4, 2026 1:00 AM PT deadline.
+9. For the alternate Chrome judge path, register the final published origin in Chrome's WebMCP origin trial or use Chrome 149+ with the testing flag, then verify the registered tools in Chrome DevTools or the Model Context Tool Inspector.
