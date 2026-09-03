@@ -70,28 +70,42 @@ assert.deepEqual(names, [
   "fill_address",
   "get_collection_item",
   "get_content_provenance",
+  "get_shopify_cart",
+  "get_shopify_product",
   "inspect_agentic_offers",
   "inspect_checkout",
   "inspect_forms",
+  "lookup_shopify_catalog",
   "navigate_to",
   "prefill_form",
   "prepare_checkout",
   "prepare_file_upload",
+  "prepare_shopify_checkout",
   "read_conversation",
   "request_agentic_payment",
   "search_collection",
+  "search_shopify_catalog",
+  "search_shopify_policies",
   "search_site",
   "search_site_knowledge",
   "select_form_options",
   "send_chat_message",
   "set_form_date",
   "submit_form",
+  "update_shopify_cart",
 ])
 
 const searchSite = tools.find((tool) => tool.name === "search_site")
 assert(searchSite)
 const searchResult = await searchSite.execute({ query: "Framer" })
-assert(Number(searchResult.count) > 0, "search_site returned no live-page matches.")
+// The live page now mentions Framer often enough to exceed the 1,500-character output budget, so the
+// runtime may answer with its structured truncation envelope. Both shapes prove the tool searched the page.
+if (searchResult.outcome === "truncated") {
+  assert.equal(searchResult.retryable, true, "Truncated search_site result must be retryable.")
+  assert(Number(searchResult.originalCharacters) > 1500, "Truncation reported without an oversized result.")
+} else {
+  assert(Number(searchResult.count) > 0, "search_site returned no live-page matches.")
+}
 
 const prefillForm = tools.find((tool) => tool.name === "prefill_form")
 assert(prefillForm)
