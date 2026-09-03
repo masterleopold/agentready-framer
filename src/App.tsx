@@ -389,7 +389,7 @@ export function App() {
     <main>
       <header className="hero">
         <div><h1>Make this site agent-ready</h1><p>Publish typed WebMCP tools for agents.</p></div>
-        <span className={`status-pill ${installed ? "live" : ""}`}>{installed ? "Installed" : "Not installed"}</span>
+        <span className={`status-pill ${installed ? "live" : ""}`}>{installed ? `Installed · ${toolCount} tools` : "Not installed"}</span>
       </header>
 
       <div className="columns">
@@ -398,10 +398,13 @@ export function App() {
           <div><div className="section-label">Site scan</div><strong>{scan?.projectName ?? "Reading project…"}</strong></div>
           <button className="icon-button" onClick={() => void runScan()} disabled={status !== "idle"} aria-label="Scan again">↻</button>
         </div>
-        {scan ? <div className="scan-stats">
-          <div><span>Text layers</span><b>{scan.textLayers}</b></div><div><span>Links</span><b>{scan.links}</b></div>
-          <div><span>CMS collections</span><b>{scan.collections.length}</b></div><div><span>Form candidates</span><b>{scan.formCandidates}</b></div>
-        </div> : <div className="scan-skeleton" />}
+        {scan ? <>
+          <div className="scan-stats">
+            <div><span>Text layers</span><b>{scan.textLayers}</b></div><div><span>Links</span><b>{scan.links}</b></div>
+            <div><span>CMS collections</span><b>{scan.collections.length}</b></div><div><span>Form candidates</span><b>{scan.formCandidates}</b></div>
+          </div>
+          <p className="hint">Agents can search this copy, open these pages, and prepare these forms. Choose what they may do below.</p>
+        </> : <div className="scan-skeleton" />}
       </section>
 
       <section className="card">
@@ -425,7 +428,7 @@ export function App() {
         {deliveryMode === "direct" && <p className="hint">All tools run in the visitor’s browser. Hybrid is recommended behind Cloudflare.</p>}
         <div className="section-label">Chrome origin trial</div>
         <input value={originTrialToken} onChange={(event) => setOriginTrialToken(event.target.value.replace(/\s+/g, ""))} placeholder="Optional first-party origin trial token" aria-label="Chrome WebMCP origin trial token" />
-        <p className={validOriginTrialToken ? "connection-result" : "connection-error"}>{validOriginTrialToken ? (originTrialToken ? "Token will be installed in the document head. Verify its origin and expiry in Chrome DevTools." : "Optional for local testing with chrome://flags/#enable-webmcp-testing.") : "Paste the complete first-party token without spaces."}</p>
+        <p className={!validOriginTrialToken ? "connection-error" : originTrialToken ? "connection-result" : "hint"}>{validOriginTrialToken ? (originTrialToken ? "Token will be installed in the document head. Verify its origin and expiry in Chrome DevTools." : "Optional. For local testing, enable chrome://flags/#enable-webmcp-testing instead.") : "Paste the complete first-party token without spaces."}</p>
       </section>
       </div>
 
@@ -479,16 +482,15 @@ export function App() {
 
       {disabledByUser && <div className="notice warning">Custom Code is disabled in Site Settings. Enable it before testing.</div>}
       {error && <div className="notice error">{error}</div>}
-      <section className="diagnostics" aria-label="Readiness checks">
-        <span className={installed ? "pass" : "pending"}>{installed ? "✓" : "1"} Runtime</span>
-        <span className={installed && !disabledByUser ? "pass" : "pending"}>{installed && !disabledByUser ? "✓" : "2"} Enabled</span>
-        <span className={publishedUrl ? "pass" : "pending"}>{publishedUrl ? "✓" : "3"} Live URL</span>
-        <span className={originTrialInstalled ? "pass" : "pending"}>{originTrialInstalled ? "✓" : "4"} Trial token</span>
-      </section>
       <footer>
-        <div className="publish-summary"><span className={installed ? "ready" : "draft"}>{installed ? "Installed" : "Draft"}</span><span>{toolCount} active WebMCP tools</span></div>
+        <div className="diagnostics" aria-label="Readiness checks">
+          <span className={installed ? "pass" : "pending"} title="WebMCP runtime is installed in Custom Code">{installed ? "✓" : "1"} Runtime</span>
+          <span className={installed && !disabledByUser ? "pass" : "pending"} title="Custom Code is enabled in Site Settings">{installed && !disabledByUser ? "✓" : "2"} Enabled</span>
+          <span className={publishedUrl ? "pass" : "pending"} title="The site has a published URL">{publishedUrl ? "✓" : "3"} Live URL</span>
+          <span className={originTrialInstalled ? "pass" : "pending"} title="Chrome origin trial token is installed">{originTrialInstalled ? "✓" : "4"} Trial token</span>
+        </div>
         <div className="footer-actions">
-          <button className="framer-button-primary" onClick={() => void publish()} disabled={!canPublish || !scan || effectiveEnabled.length === 0 || (deliveryMode !== "direct" && !validMcpPath) || !validOriginTrialToken || status !== "idle"}>{status === "publishing" ? "Installing…" : installed ? "Update tools" : "Install tools"}<span>→</span></button>
+          <button className="framer-button-primary" onClick={() => void publish()} disabled={!canPublish || !scan || effectiveEnabled.length === 0 || (deliveryMode !== "direct" && !validMcpPath) || !validOriginTrialToken || status !== "idle"}>{status === "publishing" ? "Installing…" : installed ? `Update ${toolCount} tools` : `Install ${toolCount} tools`}</button>
           {installed && <div className="row">
             <button onClick={() => void deploySite()} disabled={!canDeploy || disabledByUser || status !== "idle"}>{status === "deploying" ? "Publishing…" : "Publish site"}</button>
             <button className="remove-button" onClick={() => void removeTools()} disabled={!canPublish || status !== "idle"}>Remove tools</button>
