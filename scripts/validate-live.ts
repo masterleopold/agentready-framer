@@ -53,7 +53,7 @@ assert.deepEqual(names, [
 
 const searchSite = tools.find((tool) => tool.name === "search_site")
 assert(searchSite)
-const searchResult = await searchSite.execute({ query: "agent-ready" })
+const searchResult = await searchSite.execute({ query: "AgentReady" })
 assert(Number(searchResult.count) > 0, "search_site returned no live-page matches.")
 
 const prefillForm = tools.find((tool) => tool.name === "prefill_form")
