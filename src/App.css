@@ -104,7 +104,7 @@ p.connection-error { color: var(--ar-red); }
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
-  align-items: start;
+  align-items: stretch;
 }
 .capability-list {
   display: grid;
@@ -147,29 +147,32 @@ p.connection-error { color: var(--ar-red); }
 }
 .icon-button:hover:not(:disabled) { color: var(--framer-color-text); }
 
+/* Stat rows stack so the scan card matches the height of the delivery card beside it. */
 .scan-stats {
+  flex: 1;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-auto-rows: 1fr;
   gap: 6px;
 }
 .scan-stats div {
   min-width: 0;
-  height: 48px;
-  padding: 8px;
+  min-height: 44px;
+  padding: 0 12px;
   display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 2px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   background: var(--framer-color-bg-tertiary);
   border-radius: 8px;
 }
+.scan-stats span { color: var(--framer-color-text-secondary); font-size: 12px; }
 .scan-stats b {
   color: var(--framer-color-text);
   font-size: 14px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
-.scan-stats span { color: var(--framer-color-text-tertiary); font-size: 11px; }
+.columns > .card { align-self: stretch; }
 .scan-skeleton {
   height: 48px;
   border-radius: 8px;

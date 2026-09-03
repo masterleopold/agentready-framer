@@ -399,8 +399,8 @@ export function App() {
           <button className="icon-button" onClick={() => void runScan()} disabled={status !== "idle"} aria-label="Scan again">↻</button>
         </div>
         {scan ? <div className="scan-stats">
-          <div><b>{scan.textLayers}</b><span>Text</span></div><div><b>{scan.links}</b><span>Links</span></div>
-          <div><b>{scan.collections.length}</b><span>CMS</span></div><div><b>{scan.formCandidates}</b><span>Forms</span></div>
+          <div><span>Text layers</span><b>{scan.textLayers}</b></div><div><span>Links</span><b>{scan.links}</b></div>
+          <div><span>CMS collections</span><b>{scan.collections.length}</b></div><div><span>Form candidates</span><b>{scan.formCandidates}</b></div>
         </div> : <div className="scan-skeleton" />}
       </section>
 
