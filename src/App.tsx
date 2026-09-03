@@ -436,7 +436,7 @@ export function App() {
             const checked = enabled.includes(capability.id)
             const unavailable = capability.id === "cmsSearch" && scan?.collections.length === 0
             return <label className={`capability ${unavailable ? "unavailable" : ""}`} key={capability.id}>
-              <span className="capability-copy"><span className="capability-title">{capability.title}{capability.risk && <em>{capability.risk}</em>}</span><span>{unavailable ? "No CMS collections detected." : capability.description}</span></span>
+              <span className="capability-copy"><span className="capability-title">{capability.title}</span>{capability.risk && <em className="capability-risk">{capability.risk}</em>}<span>{unavailable ? "No CMS collections detected." : capability.description}</span></span>
               <input type="checkbox" checked={checked && !unavailable} disabled={unavailable} onChange={() => toggleCapability(capability.id)} /><span className="switch" aria-hidden="true" />
             </label>
           })}
