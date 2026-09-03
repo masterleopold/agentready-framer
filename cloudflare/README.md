@@ -22,11 +22,13 @@ Set the resulting HTTPS Worker URL in the AgentReady Framer plugin. The Turnstil
 
 `src/payments.ts` is a second Worker that exposes a free offer catalog and an MPP-protected purchase route. An unauthenticated request receives HTTP `402` plus an MPP challenge; a Cloudflare Agent with a scoped payment key can fulfill it, retry, and receive a protocol receipt.
 
-1. Set `MPP_RECIPIENT`, `MPP_CURRENCY`, the three tier amounts, and `ALLOWED_ORIGIN` in `wrangler.payments.jsonc`.
+1. Set `MPP_RECIPIENT`, `MPP_CURRENCY`, `MPP_TESTNET`, the three tier amounts, and `ALLOWED_ORIGIN` in `wrangler.payments.jsonc`. Keep testnet enabled during development and explicitly set it to `false` for a reviewed production deployment.
 2. Add the MPP signing secret: `npx wrangler secret put MPP_SECRET_KEY --config wrangler.payments.jsonc`.
 3. Deploy with `npm run deploy:payments`.
 
-Production buyer agents should use scoped keys with spending and recipient restrictions. The Framer page never receives a wallet private key. This paid route is for agent-native digital offers; Shopify physical-goods checkout remains a separate flow ending in Shopify-hosted confirmation.
+Production buyer agents should use scoped keys with spending and recipient restrictions. The Framer page only exposes the challenge, credential-header name, and receipt; it never receives a wallet private key or payment credential. Each verified payment produces a deterministic, non-reversible order and entitlement ID derived from the verified credential, so retrying the same paid request does not mint unrelated IDs; responses are marked `no-store`. Retain the `Payment-Receipt` with the order ID as payment evidence. This paid route is for agent-native digital offers; Shopify physical-goods checkout remains a separate flow ending in Shopify-hosted confirmation.
+
+The Worker currently accepts one-time MPP payments through Tempo. Cloudflare also supports cards through other MPP payment methods, recurring/usage-based MPP payments, and x402. Those methods require an intentional merchant configuration and are not advertised by this Worker until configured.
 
 ## Pay Per Crawl
 

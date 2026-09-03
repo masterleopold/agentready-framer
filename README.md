@@ -20,7 +20,7 @@ The complete configured runtime can publish 30 focused tools:
 - conversation — read chatbot replies, compose a turn, and optionally send/wait
 - safe checkout — prepare non-sensitive order details while keeping credentials and final confirmation human-only
 - Shopify Storefront MCP + UCP — localized catalog search, batch lookup, interactive variant selection, merchant policy answers, cart management, and Shopify Checkout handoff; Storefront GraphQL remains an automatic fallback
-- Cloudflare Agentic Payments — discover paid offers and expose MPP HTTP 402 challenges and receipts
+- Cloudflare Agentic Payments — discover paid offers and expose MPP/x402 HTTP 402 challenges, safe retry instructions, verified order IDs, and receipts
 - Cloudflare Pay Per Crawl — publish price, permitted purposes, evidence guidance, and a paid structured JSON representation of Framer content
 - Cloudflare intelligence — search and answer from AI Search with citations, attest same-origin content, record anonymous tool metrics, and verify deployments with Browser Run
 - `submit_form` — optional side-effecting submission for non-payment, non-authentication forms
