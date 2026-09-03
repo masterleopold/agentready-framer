@@ -104,7 +104,7 @@ p.connection-error { color: var(--ar-red); }
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
-  align-items: stretch;
+  align-items: start;
 }
 .capability-list {
   display: grid;
@@ -167,14 +167,13 @@ p.connection-error { color: var(--ar-red); }
   border-radius: 8px;
 }
 .scan-stats span { color: var(--framer-color-text-tertiary); font-size: 11px; }
-.card > .hint { margin-top: auto; }
+
 .scan-stats b {
   color: var(--framer-color-text);
   font-size: 14px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
-.columns > .card { align-self: stretch; }
 .scan-skeleton {
   height: 48px;
   border-radius: 8px;
