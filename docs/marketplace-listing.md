@@ -1,6 +1,7 @@
 # Framer Marketplace listing
 
 Prepared against Framer's August 7, 2026 [How to publish a plugin](https://www.framer.com/help/articles/how-to-publish-a-plugin/) workflow.
+Quality preflight follows Framer's August 7, 2026 [Plugin best practices](https://www.framer.com/help/articles/plugin-best-practices/).
 
 ## Official publication procedure
 
@@ -23,8 +24,12 @@ For later releases, open the plugin's Community page, use the three-dot menu, ch
 - **Byline:** Turn any Framer site into a secure WebMCP tool surface—without writing code.
 - **Categories:** Developer Tools, Integrations, AI
 - **Tags:** WebMCP, AI agents, forms, Shopify, Cloudflare, accessibility
+- **Marketplace price:** Free
 - **Website:** https://agentready.framer.website
 - **Source:** https://github.com/masterleopold/agentready-framer
+- **Support:** https://github.com/masterleopold/agentready-framer/issues
+
+The core Direct runtime is free and open source under MIT. The Creator ($49), Studio ($149), and Agency ($399) offers on the demo site demonstrate WebMCP commerce and optional commercial licensing; they are not required to inspect, build, or run the repository. Display all paid amounts in USD in the Marketplace listing.
 
 ## Short description
 
@@ -42,6 +47,10 @@ Sensitive credentials stay human-controlled. AgentReady refuses card, bank, pass
 
 The project is open source under the MIT License. Cloudflare and Shopify integrations require the site owner's own accounts and configuration.
 
+Core Direct mode requires only Framer. Shopify commerce, Cloudflare edge delivery, Agentic Payments, Pay Per Crawl, AI Search, Browser Run, and Analytics Engine are optional integrations and may require separate accounts, configuration, product availability, or usage charges. AgentReady does not require authentication for core operation. Anonymous telemetry is optional, records no prompts or form values, and can be disabled in the plugin.
+
+For setup and troubleshooting, use the repository README and GitHub Issues. In particular, Framer isolates Custom Code by plugin identity: keep exactly one AgentReady runtime and remove a legacy **API Plugin** entry before installing from a Marketplace or development identity.
+
 ## Marketplace media checklist
 
 1. Hero image: plugin beside the live AgentReady Framer canvas.
@@ -49,6 +58,17 @@ The project is open source under the MIT License. Cloudflare and Shopify integra
 3. Safety image: human-only payment and authentication boundary.
 4. Demo image: `agentready.framer.website` with the registered WebMCP tools.
 5. Verify the UI in both Framer light and dark themes before publishing.
+6. Keep the thumbnail focused on the real plugin UI, with minimal text and no decorative claims.
+
+## Best-practice preflight
+
+- Clear problem and accurate English listing copy: ready.
+- Necessary permissions only, reversible removal, and human confirmation for consequential actions: ready.
+- Loading, empty, disabled, connection-error, and publish-error states: implemented.
+- Framer color tokens and automatic light/dark adaptation: implemented; manually verify both modes before Submit.
+- Fresh empty project, CMS project, and configured commerce project: manually verify before Submit.
+- External dependencies, authentication, privacy, limitations, pricing, and support: disclosed above and in the README.
+- High-quality icon and functional screenshots: icon ready; final Marketplace screenshots still require selection/upload.
 
 ## Release notes — 0.1.0
 

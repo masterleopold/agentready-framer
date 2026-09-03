@@ -213,6 +213,10 @@ CI runs type checking, linting, the runtime and gateway tests, the demo componen
 - Self-hosted deployments must configure their own Shopify product/variant IDs or HTTPS checkout URL. The public demo has a live product, but no merchant credentials or simulated completed payments ship in this repository.
 - Pay Per Crawl requires an enrolled Cloudflare zone. The Worker adds structured JSON; Cloudflare performs billing enforcement.
 
+## Support
+
+Setup, operational boundaries, and common validation commands are documented in this README and the linked guides below. Report reproducible problems through [GitHub Issues](https://github.com/masterleopold/agentready-framer/issues). Include the Framer project state, browser/version, delivery mode, and the exact error message, but never include API keys, payment credentials, Storefront cart secrets, passwords, or form data.
+
 ## Documentation
 
 - [Capability and safety matrix](docs/capability-matrix.md)
@@ -221,6 +225,7 @@ CI runs type checking, linting, the runtime and gateway tests, the demo componen
 - [Request coverage and launch status](docs/request-coverage.md)
 - [Challenge checklist](docs/challenge-checklist.md)
 - [Submission copy, demo prompts, and video outline](docs/submission.md)
+- [Framer Marketplace listing and publication preflight](docs/marketplace-listing.md)
 - [Cloudflare deployment guide](cloudflare/README.md)
 
 ## License
