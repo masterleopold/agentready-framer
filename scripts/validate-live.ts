@@ -65,6 +65,7 @@ assert.deepEqual(names, [
   "select_form_options",
   "send_chat_message",
   "set_form_date",
+  "submit_form",
 ])
 
 const searchSite = tools.find((tool) => tool.name === "search_site")
