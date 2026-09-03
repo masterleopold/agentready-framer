@@ -137,7 +137,6 @@ export function App() {
   return (
     <main>
       <header className="hero">
-        <div className="brand-mark" aria-hidden="true"><span /><span /></div>
         <div><div className="eyebrow">AGENTREADY</div><h1>Make this site agent-ready.</h1></div>
         <span className={`status-dot ${installed ? "live" : ""}`} title={installed ? "Installed" : "Not installed"} />
       </header>
