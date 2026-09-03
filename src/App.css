@@ -222,7 +222,8 @@ h1 {
 .notice.warning { color: #ffc46e; background: rgba(255, 164, 46, .1); border: 1px solid rgba(255, 164, 46, .25); }
 .notice.error { color: #ff8f8f; background: rgba(255, 76, 76, .1); border: 1px solid rgba(255, 76, 76, .25); }
 
-.diagnostics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.origin-trial-label { margin-top: 5px; }
+.diagnostics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
 .diagnostics span {
   padding: 7px 6px;
   color: rgba(255, 255, 255, .38);

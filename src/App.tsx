@@ -1,6 +1,6 @@
 import { framer, useIsAllowedTo } from "@framer/plugin"
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { buildWebMcpCustomCode } from "./runtime"
+import { buildOriginTrialCustomCode, buildWebMcpCustomCode } from "./runtime"
 import type { CapabilityId, CmsCollectionSnapshot, RuntimeConfig, SiteScan } from "./types"
 import "./App.css"
 
@@ -79,6 +79,8 @@ export function App() {
   const [deliveryMode, setDeliveryMode] = useState<"direct" | "hybrid" | "cloudflare">("direct")
   const [mcpPath, setMcpPath] = useState("/mcp")
   const [contentCredentials, setContentCredentials] = useState(false)
+  const [originTrialToken, setOriginTrialToken] = useState("")
+  const [originTrialInstalled, setOriginTrialInstalled] = useState(false)
   const [settingsLoaded, setSettingsLoaded] = useState(false)
 
   const refreshInstallStatus = useCallback(async () => {
@@ -88,6 +90,7 @@ export function App() {
     ])
     const bodyEnd = customCode.bodyEnd
     setInstalled(Boolean(bodyEnd.html?.includes("agentready-webmcp")))
+    setOriginTrialInstalled(Boolean(customCode.headStart.html?.includes("agentready-webmcp-origin-trial")))
     setDisabledByUser(bodyEnd.disabled)
     setPublishedUrl(publishInfo.production?.url ?? publishInfo.staging?.url ?? null)
   }, [])
@@ -132,6 +135,7 @@ export function App() {
           deliveryMode: "direct" | "hybrid" | "cloudflare"
           mcpPath: string
           contentCredentials: boolean
+          originTrialToken: string
         }>
         if (Array.isArray(parsed.enabled)) setEnabled(parsed.enabled.filter((id): id is CapabilityId => CAPABILITIES.some((capability) => capability.id === id)))
         if (typeof parsed.shopifyDomain === "string") setShopifyDomain(parsed.shopifyDomain)
@@ -146,6 +150,7 @@ export function App() {
         if (["direct", "hybrid", "cloudflare"].includes(parsed.deliveryMode ?? "")) setDeliveryMode(parsed.deliveryMode as "direct" | "hybrid" | "cloudflare")
         if (typeof parsed.mcpPath === "string") setMcpPath(parsed.mcpPath)
         if (typeof parsed.contentCredentials === "boolean") setContentCredentials(parsed.contentCredentials)
+        if (typeof parsed.originTrialToken === "string") setOriginTrialToken(parsed.originTrialToken)
       } catch {
         framer.notify("Saved AgentReady settings could not be read.", { variant: "warning" })
       }
@@ -155,10 +160,10 @@ export function App() {
   useEffect(() => {
     if (!settingsLoaded || !canSaveSettings) return
     const timeout = window.setTimeout(() => {
-      void framer.setPluginData(SETTINGS_KEY, JSON.stringify({ enabled, shopifyDomain, shopifyMode, shopifyAgentProfile, shopifyToken, paymentEndpoint, intelligenceEndpoint, telemetryEnabled, crawlPrice, allowAiTraining, deliveryMode, mcpPath, contentCredentials }))
+      void framer.setPluginData(SETTINGS_KEY, JSON.stringify({ enabled, shopifyDomain, shopifyMode, shopifyAgentProfile, shopifyToken, paymentEndpoint, intelligenceEndpoint, telemetryEnabled, crawlPrice, allowAiTraining, deliveryMode, mcpPath, contentCredentials, originTrialToken }))
     }, 250)
     return () => window.clearTimeout(timeout)
-  }, [allowAiTraining, canSaveSettings, contentCredentials, crawlPrice, deliveryMode, enabled, intelligenceEndpoint, mcpPath, paymentEndpoint, settingsLoaded, shopifyAgentProfile, shopifyDomain, shopifyMode, shopifyToken, telemetryEnabled])
+  }, [allowAiTraining, canSaveSettings, contentCredentials, crawlPrice, deliveryMode, enabled, intelligenceEndpoint, mcpPath, originTrialToken, paymentEndpoint, settingsLoaded, shopifyAgentProfile, shopifyDomain, shopifyMode, shopifyToken, telemetryEnabled])
 
   const validShopifyDomain = /^[a-z0-9][a-z0-9-]*\.myshopify\.com$/i.test(shopifyDomain.trim().replace(/^https?:\/\//, "").replace(/\/$/, ""))
   const validShopifyAgentProfile = /^https:\/\/[a-z0-9.-]+(?::\d+)?(?:\/.*)?$/i.test(shopifyAgentProfile.trim())
@@ -166,6 +171,7 @@ export function App() {
   const validIntelligenceEndpoint = /^https:\/\/[a-z0-9.-]+(?::\d+)?(?:\/.*)?$/i.test(intelligenceEndpoint.trim())
   const validCrawlPrice = /^\d+(?:\.\d{1,6})?$/.test(crawlPrice) && Number(crawlPrice) > 0
   const validMcpPath = /^\/(?!\/)[^?#]*$/.test(mcpPath.trim())
+  const validOriginTrialToken = !originTrialToken.trim() || /^[A-Za-z0-9+/_=-]{40,}$/.test(originTrialToken.trim())
   const testShopifyConnection = async () => {
     if (!validShopifyDomain || (shopifyMode !== "graphql" && !validShopifyAgentProfile)) return
     const storeDomain = shopifyDomain.trim().replace(/^https?:\/\//, "").replace(/\/$/, "")
@@ -251,6 +257,7 @@ export function App() {
         crawlMonetization: validCrawlPrice ? { currency: "USD", pricePerRequest: crawlPrice, purposes: { search: true, aiInput: true, aiTrain: allowAiTraining }, contentUse: allowAiTraining ? "full" : "reference" } : undefined,
       }
       await framer.setCustomCode({ html: buildWebMcpCustomCode(config), location: "bodyEnd" })
+      await framer.setCustomCode({ html: validOriginTrialToken ? buildOriginTrialCustomCode(originTrialToken) : null, location: "headStart" })
       await refreshInstallStatus()
       framer.notify(`Published ${toolCount} WebMCP tools`, { variant: "success" })
     } catch (publishError) {
@@ -286,6 +293,7 @@ export function App() {
     setError(null)
     try {
       await framer.setCustomCode({ html: null, location: "bodyEnd" })
+      await framer.setCustomCode({ html: null, location: "headStart" })
       await refreshInstallStatus()
       framer.notify("AgentReady WebMCP tools removed", { variant: "success" })
     } catch (removeError) {
@@ -327,6 +335,9 @@ export function App() {
           {contentCredentials && <p>C2PA tools decode embedded provenance metadata; the preview pack reports signatureVerified: false and is not cryptographic verification.</p>}
         </>}
         {deliveryMode === "direct" && <p>All tools run in the visitor browser. Hybrid is recommended when the site is behind Cloudflare.</p>}
+        <div className="section-label origin-trial-label">CHROME 149+ ORIGIN TRIAL</div>
+        <input value={originTrialToken} onChange={(event) => setOriginTrialToken(event.target.value.replace(/\s+/g, ""))} placeholder="Optional first-party origin trial token" aria-label="Chrome WebMCP origin trial token" />
+        <p className={validOriginTrialToken ? "connection-result" : "connection-error"}>{validOriginTrialToken ? (originTrialToken ? "Token will be installed in the document head. Verify its origin and expiry in Chrome DevTools." : "Optional for local testing with chrome://flags/#enable-webmcp-testing.") : "Paste the complete first-party token without spaces."}</p>
       </section>
 
       <section className="capabilities">
@@ -380,11 +391,12 @@ export function App() {
         <span className={installed ? "pass" : "pending"}>{installed ? "✓" : "1"} Runtime</span>
         <span className={installed && !disabledByUser ? "pass" : "pending"}>{installed && !disabledByUser ? "✓" : "2"} Enabled</span>
         <span className={publishedUrl ? "pass" : "pending"}>{publishedUrl ? "✓" : "3"} Live URL</span>
+        <span className={originTrialInstalled ? "pass" : "pending"}>{originTrialInstalled ? "✓" : "4"} Trial token</span>
       </section>
       <footer>
         <div className="publish-summary"><span className={installed ? "ready" : "draft"}>{installed ? "Installed" : "Draft"}</span><span>{toolCount} WebMCP tools</span></div>
         <div className="footer-actions">
-          <button className="publish-button" onClick={() => void publish()} disabled={!canPublish || !scan || effectiveEnabled.length === 0 || (deliveryMode !== "direct" && !validMcpPath) || status !== "idle"}>{status === "publishing" ? "Installing…" : installed ? "Update tools" : "Install tools"}<span>→</span></button>
+          <button className="publish-button" onClick={() => void publish()} disabled={!canPublish || !scan || effectiveEnabled.length === 0 || (deliveryMode !== "direct" && !validMcpPath) || !validOriginTrialToken || status !== "idle"}>{status === "publishing" ? "Installing…" : installed ? "Update tools" : "Install tools"}<span>→</span></button>
           {installed && <button className="deploy-button" onClick={() => void deploySite()} disabled={!canDeploy || disabledByUser || status !== "idle"}>{status === "deploying" ? "Publishing site…" : "Publish site"}</button>}
           {installed && <button className="remove-button" onClick={() => void removeTools()} disabled={!canPublish || status !== "idle"}>Remove tools</button>}
           {publishedUrl && <a className="live-link" href={publishedUrl} target="_blank" rel="noreferrer">Open live site ↗</a>}

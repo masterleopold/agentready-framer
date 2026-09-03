@@ -27,11 +27,19 @@ Checked against the official OpenAI challenge page, Devpost overview, rules, and
 
 - Framer-native plugin and live responsive Framer site.
 - Direct, Hybrid, and Cloudflare Bridge delivery with duplicate-safe imperative registration.
+- Chrome 149+ Origin Trial token installation, feature detection, declarative-form de-duplication, active-state UI, and secure metadata/output budgets.
 - 30-tool browser-runtime test matrix plus a same-origin MCP gateway covering forms, conversation, commerce, payments, paid crawling, cited knowledge, and provenance.
 - Visible human/agent handoffs for files, external messaging, checkout, and payment.
 - Shopify Storefront cart workflow plus Shopify-hosted checkout handoff.
 - Cloudflare WebMCP bridge/pack integration, same-origin MCP gateway, Durable Objects, R2, Turnstile, MPP Agentic Payments, Pay Per Crawl, AI Search, Browser Run, Analytics Engine, Workers Observability, and optional AI Gateway reference Workers.
 - MIT license and public repository.
+
+## Chrome judge path
+
+1. Open the final published origin in Chrome 149+ with its valid WebMCP Origin Trial token, or enable the local testing flag for development.
+2. Confirm the Origin Trial and WebMCP surface in Chrome DevTools, then inspect `window.__agentReadyRegistration` for zero failures.
+3. Run a read-only discovery tool and a visible form-preparation tool; demonstrate that a declarative `toolname` form is not duplicated.
+4. Show an oversized-content query returning bounded retry guidance, cancellation of a waiting call, and refusal of payment/sensitive submission.
 
 ## Freeze rule
 

@@ -7,6 +7,20 @@ function escapeInlineJson(value: unknown) {
     .replaceAll("&", "\\u0026")
 }
 
+function escapeHtmlAttribute(value: string) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+}
+
+export function buildOriginTrialCustomCode(token: string) {
+  const normalized = token.trim()
+  if (!normalized) return null
+  return `<meta id="agentready-webmcp-origin-trial" http-equiv="origin-trial" content="${escapeHtmlAttribute(normalized)}">`
+}
+
 export function buildWebMcpCustomCode(config: RuntimeConfig) {
   const serializedConfig = escapeInlineJson(config)
 
@@ -22,6 +36,17 @@ export function buildWebMcpCustomCode(config: RuntimeConfig) {
   if (window.__agentReadyController) window.__agentReadyController.abort();
   const controller = new AbortController();
   window.__agentReadyController = controller;
+  const declarativeStyle = document.createElement("style");
+  declarativeStyle.id = "agentready-webmcp-declarative-state";
+  declarativeStyle.textContent = 'form:tool-form-active{outline:2px solid #0099ff;outline-offset:4px}:is(button,input[type="submit"]):tool-submit-active{outline:2px solid #0099ff;outline-offset:2px}';
+  document.head.append(declarativeStyle);
+  const setDeclarativeState = (state, event) => {
+    document.documentElement.setAttribute("data-agentready-tool-state", state);
+    window.dispatchEvent(new CustomEvent("agentready:declarative-state", { detail: { state, toolName: event?.toolName } }));
+  };
+  window.addEventListener("toolactivated", (event) => setDeclarativeState("active", event), { signal: controller.signal });
+  window.addEventListener("toolcancel", (event) => setDeclarativeState("cancelled", event), { signal: controller.signal });
+  controller.signal.addEventListener("abort", () => { declarativeStyle.remove(); document.documentElement.removeAttribute("data-agentready-tool-state"); }, { once: true });
   const enabled = new Set(config.capabilities);
   const delivery = config.delivery || { mode: "direct", mcpPath: "/mcp", contentCredentials: false };
   const remoteTools = new Set([
@@ -29,8 +54,38 @@ export function buildWebMcpCustomCode(config: RuntimeConfig) {
     "inspect_agentic_offers", "request_agentic_payment", "discover_paid_content",
     "search_shopify_catalog", "lookup_shopify_catalog", "get_shopify_product", "search_shopify_policies"
   ]);
+  const untrustedUiTools = new Set([
+    "search_site", "inspect_forms", "prefill_form", "fill_address", "select_form_options",
+    "set_form_date", "advance_form_step", "prepare_file_upload", "read_conversation",
+    "send_chat_message", "inspect_checkout", "prepare_checkout"
+  ]);
   const registrations = [];
-  const toolNamePattern = /^[A-Za-z0-9_.-]{1,128}$/;
+  const toolNamePattern = /^[A-Za-z0-9_.-]{1,30}$/;
+  const OUTPUT_CHARACTER_BUDGET = 1500;
+  const outputWithinBudget = (tool, result) => {
+    const serialized = JSON.stringify(result);
+    if (serialized === undefined) throw new Error("Tool " + tool + " returned a non-JSON value.");
+    if (serialized.length <= OUTPUT_CHARACTER_BUDGET) return result;
+    const base = {
+      outcome: "truncated", tool, originalCharacters: serialized.length,
+      reason: "Result exceeded AgentReady's 1,500-character WebMCP output budget.",
+      retryable: true,
+      nextAction: "Retry with a narrower query, a smaller limit, or a specific form index and field window.",
+    };
+    let preview = serialized.slice(0, 900);
+    while (preview && JSON.stringify({ ...base, preview }).length > OUTPUT_CHARACTER_BUDGET) preview = preview.slice(0, -50);
+    return { ...base, preview };
+  };
+  const validateSchemaBudget = (schema, path = "input") => {
+    if (!schema || typeof schema !== "object") return;
+    if (typeof schema.description === "string" && schema.description.length > 150) throw new Error(path + " description exceeds 150 characters.");
+    for (const [name, child] of Object.entries(schema.properties || {})) {
+      if (name.length > 30) throw new Error(path + "." + name + " exceeds 30 characters.");
+      validateSchemaBudget(child, path + "." + name);
+    }
+    if (schema.items) validateSchemaBudget(schema.items, path + "[]");
+    for (const keyword of ["anyOf", "oneOf", "allOf"]) for (const child of schema[keyword] || []) validateSchemaBudget(child, path);
+  };
   const toolTitle = (name) => name.split(/[_.-]+/).filter(Boolean).map((word) => {
     const upper = word.toUpperCase();
     if (["AI", "CMS", "URL", "MCP", "JSON"].includes(upper)) return upper;
@@ -59,16 +114,22 @@ export function buildWebMcpCustomCode(config: RuntimeConfig) {
       console.error("[AgentReady] Refused invalid WebMCP tool name", tool.name);
       return;
     }
+    if (typeof tool.description !== "string" || !tool.description.trim() || tool.description.length > 500) {
+      console.error("[AgentReady] Refused invalid WebMCP tool description", tool.name);
+      return;
+    }
+    try { validateSchemaBudget(tool.inputSchema); }
+    catch (error) { console.error("[AgentReady] Refused oversized WebMCP schema metadata", tool.name, error); return; }
     const execute = tool.execute;
     const annotations = tool.annotations ? {
       readOnlyHint: tool.annotations.readOnlyHint === true,
-      untrustedContentHint: tool.annotations.untrustedContentHint === true,
-    } : undefined;
+      untrustedContentHint: tool.annotations.untrustedContentHint === true || untrustedUiTools.has(tool.name),
+    } : untrustedUiTools.has(tool.name) ? { readOnlyHint: false, untrustedContentHint: true } : undefined;
     const definition = { ...tool, title: tool.title || toolTitle(tool.name), ...(annotations ? { annotations } : {}) };
     let registration;
     try { registration = modelContext.registerTool({ ...definition, execute: async (input, context) => {
       const started = Date.now();
-      try { const result = await execute(input, context); recordToolEvent(tool.name, "success", Date.now() - started); return result; }
+      try { const result = outputWithinBudget(tool.name, await execute(input, context)); recordToolEvent(tool.name, "success", Date.now() - started); return result; }
       catch (error) { recordToolEvent(tool.name, "error", Date.now() - started); throw error; }
     } }, { signal: controller.signal }); }
     catch (error) { registration = Promise.reject(error); }
@@ -103,7 +164,7 @@ export function buildWebMcpCustomCode(config: RuntimeConfig) {
     const wrapping = field.closest("label");
     return text(labelled || field.getAttribute("aria-label") || explicit?.textContent || wrapping?.textContent || field.getAttribute("placeholder") || fieldKey(field)).replace(/\\s+/g, " ").slice(0, 160);
   };
-  const fieldDescription = (field) => (referencedText(field.getAttribute("aria-describedby")) || text(field.getAttribute("aria-description") || field.getAttribute("toolparamdescription"))).slice(0, 500) || undefined;
+  const fieldDescription = (field) => (referencedText(field.getAttribute("aria-describedby")) || text(field.getAttribute("aria-description") || field.getAttribute("toolparamdescription"))).slice(0, 150) || undefined;
   const sensitivePattern = /(?:^|[\\s_.-])(password|passcode|pin|otp|one[- ]?time|verification|security[- ]?code|cvv|cvc|card|pan|iban|swift|routing|bank[- ]?account|account[- ]?number|ssn|social[- ]?security)(?:$|[\\s_.-])/i;
   const paymentPattern = /checkout|payment|billing|credit|debit|card|pay now|place order|complete purchase|apple pay|google pay/i;
   const finalActionPattern = /submit|send|pay|purchase|place order|complete|confirm order|book now|register now|sign up/i;
@@ -117,7 +178,7 @@ export function buildWebMcpCustomCode(config: RuntimeConfig) {
     for (const container of document.querySelectorAll('[role="form"],[data-agentready-form]')) {
       if (!result.includes(container)) result.push(container);
     }
-    return result.filter(isVisible);
+    return result.filter((form) => isVisible(form) && !form.hasAttribute("toolname"));
   };
   const getForm = (formIndex = 0) => forms()[Number(formIndex) || 0] || null;
   const formFields = (form) => form ? [...form.querySelectorAll('input,textarea,select,[contenteditable="true"],[role="combobox"],[role="listbox"],[role="checkbox"],[role="radio"],[role="switch"],[role="slider"],[role="spinbutton"],[role="tab"],[aria-pressed]')].filter(isVisible) : [];
@@ -138,11 +199,11 @@ export function buildWebMcpCustomCode(config: RuntimeConfig) {
     return exact.length ? exact : candidates.filter((field) => [fieldKey(field), fieldLabel(field)].some((value) => normalize(value).includes(needle)));
   };
   const fieldOptions = (field) => {
-    if (field instanceof HTMLSelectElement) return [...field.options].map((option) => ({ label: text(option.textContent), value: option.value, selected: option.selected, disabled: option.disabled }));
-    if (field instanceof HTMLInputElement && field.list) return [...field.list.options].map((option) => ({ label: text(option.label || option.value), value: option.value, selected: field.value === option.value, disabled: option.disabled }));
+    if (field instanceof HTMLSelectElement) return [...field.options].slice(0, 12).map((option) => ({ label: text(option.textContent).slice(0, 100), value: option.value.slice(0, 100), selected: option.selected, disabled: option.disabled }));
+    if (field instanceof HTMLInputElement && field.list) return [...field.list.options].slice(0, 12).map((option) => ({ label: text(option.label || option.value).slice(0, 100), value: option.value.slice(0, 100), selected: field.value === option.value, disabled: option.disabled }));
     if (field instanceof HTMLInputElement && (field.type === "radio" || field.type === "checkbox")) return [{ label: fieldLabel(field), value: field.value || "on", selected: field.checked, disabled: field.disabled }];
     const controls = field.getAttribute("aria-controls"); const owner = controls && document.getElementById(controls);
-    return [...(owner || document).querySelectorAll('[role="option"]')].filter(isVisible).map((option) => ({ label: text(option.textContent), value: option.getAttribute("data-value") || text(option.textContent), selected: option.getAttribute("aria-selected") === "true", disabled: option.getAttribute("aria-disabled") === "true" }));
+    return [...(owner || document).querySelectorAll('[role="option"]')].filter(isVisible).slice(0, 12).map((option) => ({ label: text(option.textContent).slice(0, 100), value: text(option.getAttribute("data-value") || option.textContent).slice(0, 100), selected: option.getAttribute("aria-selected") === "true", disabled: option.getAttribute("aria-disabled") === "true" }));
   };
   const describeField = (field, index) => {
     const sensitive = isSensitiveField(field);
@@ -419,7 +480,7 @@ export function buildWebMcpCustomCode(config: RuntimeConfig) {
   if (enabled.has("navigation")) register({ name: "navigate_to", description: "Navigate within this origin or scroll a matching visible section into view.", inputSchema: { type: "object", properties: { path: { type: "string" }, section: { type: "string" } }, additionalProperties: false }, execute: async ({ path, section }) => { if (section) { const target = document.getElementById(section) || [...document.querySelectorAll("h1,h2,h3,h4,[data-framer-name]")].find((element) => normalize(element.textContent).includes(normalize(section))); if (target) { target.scrollIntoView({ behavior: "smooth", block: "center" }); return { navigated: true, section, page: location.href }; } } if (path) { const target = new URL(path, location.origin); if (target.origin !== location.origin) throw new Error("Only same-origin navigation is allowed."); location.assign(target.href); return { navigated: true, url: target.href }; } return { navigated: false, reason: "No matching section or path was provided." }; } });
 
   if (enabled.has("formFill") && hasForms) {
-    register({ name: "inspect_forms", description: "Inspect visible forms, steps, field types, constraints, and choices. Sensitive values are never returned.", inputSchema: { type: "object", properties: { formIndex: { type: "integer", minimum: 0 } }, additionalProperties: false }, annotations: { readOnlyHint: true }, execute: async ({ formIndex } = {}) => { const available = forms(); const selected = Number.isInteger(formIndex) ? [available[formIndex]].filter(Boolean) : available; return { forms: selected.map((form) => ({ ...describeForm(form, available.indexOf(form)), step: currentStep(form) })), count: selected.length }; } });
+    register({ name: "inspect_forms", description: "List visible imperative forms, or inspect one form and a bounded window of its fields. Sensitive values are never returned.", inputSchema: { type: "object", properties: { formIndex: { type: "integer", minimum: 0 }, fieldOffset: { type: "integer", minimum: 0, default: 0 }, fieldLimit: { type: "integer", minimum: 1, maximum: 8, default: 4 } }, additionalProperties: false }, annotations: { readOnlyHint: true, untrustedContentHint: true }, execute: async ({ formIndex, fieldOffset = 0, fieldLimit = 4 } = {}) => { const available = forms(); if (!Number.isInteger(formIndex)) return { forms: available.map((form, index) => { const descriptor = describeForm(form, index); return { formIndex: index, name: descriptor.name, payment: descriptor.payment, fieldCount: descriptor.fields.length, step: currentStep(form), valid: descriptor.validation.valid, pending: descriptor.validation.pending }; }), count: available.length, nextAction: "Call inspect_forms with formIndex to inspect a bounded field window." }; const form = available[formIndex]; if (!form) return { found: false, formIndex, count: available.length }; const descriptor = describeForm(form, formIndex); const fields = descriptor.fields.slice(fieldOffset, fieldOffset + fieldLimit); const nextFieldOffset = fieldOffset + fields.length < descriptor.fields.length ? fieldOffset + fields.length : undefined; return { found: true, ...descriptor, fields, fieldCount: descriptor.fields.length, fieldOffset, nextFieldOffset, step: currentStep(form) }; } });
     register({ name: "prefill_form", description: "Fill safe text, number, checkbox, radio, select, multi-select, date, time, toggle, slider, and rich-text fields without submitting. Password, payment, OTP, and bank fields are blocked.", inputSchema: { type: "object", properties: { values: { type: "object", additionalProperties: { type: ["string", "number", "boolean", "array"], items: { type: "string" } } }, formIndex: { type: "integer", minimum: 0, default: 0 } }, required: ["values"], additionalProperties: false }, execute: async ({ values, formIndex = 0 }) => { const form = getForm(formIndex); if (!form) return { filled: false, reason: "Form not found", formIndex }; const results = fillValues(form, values); form.scrollIntoView({ behavior: "smooth", block: "center" }); return { filled: results.some((item) => item.status === "updated"), updated: results.filter((item) => item.status === "updated").map((item) => item.key), blocked: results.filter((item) => item.status !== "updated"), results, validation: formValidation(form), usesCurrentVisibleValues: true, requiresUserReview: true, formIndex }; } });
     register({ name: "fill_address", description: "Fill a structured shipping or billing address using semantic autocomplete fields, including recipient, organization, street lines, city, region, postal code, country, phone, and email.", inputSchema: { type: "object", properties: { address: { type: "object", properties: { recipient: { type: "string" }, organization: { type: "string" }, line1: { type: "string" }, line2: { type: "string" }, city: { type: "string" }, region: { type: "string" }, postalCode: { type: "string" }, country: { type: "string" }, countryCode: { type: "string" }, phone: { type: "string" }, email: { type: "string" } }, additionalProperties: false }, scope: { type: "string", enum: ["shipping", "billing"] }, formIndex: { type: "integer", minimum: 0, default: 0 } }, required: ["address"], additionalProperties: false }, execute: async ({ address, scope, formIndex = 0 }) => { const form = getForm(formIndex); if (!form) return { filled: false, reason: "Form not found" }; const results = fillAddress(form, address, scope); form.scrollIntoView({ behavior: "smooth", block: "center" }); return { filled: results.some((item) => item.status === "updated"), results, blocked: results.filter((item) => item.status !== "updated"), requiresUserReview: true }; } });
     register({ name: "select_form_options", description: "Select native or ARIA combobox, listbox, radio, checkbox, and multi-select options without submitting.", inputSchema: { type: "object", properties: { selections: { type: "object", additionalProperties: { type: ["string", "boolean", "array"], items: { type: "string" } } }, formIndex: { type: "integer", minimum: 0, default: 0 } }, required: ["selections"], additionalProperties: false }, execute: async ({ selections, formIndex = 0 }) => { const form = getForm(formIndex); if (!form) return { selected: false, reason: "Form not found", formIndex }; const results = []; for (const [key, value] of Object.entries(selections)) { const nativeResult = setField(form, key, value); results.push(nativeResult.status === "not_found" ? await selectCustomOption(form, key, value) : nativeResult); } return { selected: results.some((item) => item.status === "updated"), results, requiresUserReview: true }; } });

@@ -12,6 +12,7 @@ This is the implementation audit against the product requirements for AgentReady
 | Framer Marketplace distribution | External setup | Package is ready; publication requires Framer review and owner submission |
 | Self-host plugin UI on Vercel or Cloudflare | Implemented | Static `dist` is deployable while optional Workers remain separate services |
 | Cloudflare WebMCP edge delivery | Implemented with external setup | Direct/Hybrid/Bridge modes, same-origin `/mcp` Worker, remote/local tool separation, and C2PA pack guidance; Cloudflare zone activation remains external |
+| Chrome 149+ Origin Trial onboarding | Implemented with external setup | Plugin stores an optional public, first-party token and installs an escaped `origin-trial` meta element in `headStart`; the site owner must register the exact origin and renew expired tokens |
 | Public Framer demo with the plugin installed | Implemented | Live Framer page plus `npm run test:live` |
 | Sell AgentReady from its own WebMCP-enabled demo | Implemented with external setup | Tiered checkout UI and tools exist; a real HTTPS checkout URL/product is required to take money |
 
@@ -52,7 +53,9 @@ This is the implementation audit against the product requirements for AgentReady
 
 - Imperative tools are registered from top-level page JavaScript with narrow JSON Schemas.
 - Tools are registered only when their capability and relevant UI/configuration are present.
+- Declarative forms carrying `toolname` are excluded from imperative form discovery; active/cancel events and Chrome's declarative pseudo-classes receive visible runtime support.
 - Every tool has a user-facing title; only the currently standardized `readOnlyHint` and `untrustedContentHint` WebMCP annotations are forwarded. Review, refusal, and consequential-action policy stays in explicit tool contracts until the related proposals are standardized.
+- Chrome secure-tool budgets are enforced at registration and execution: 30-character names, 500-character tool descriptions, 150-character parameter descriptions, and 1,500-character JSON results. Oversized results return retryable narrowing guidance.
 - Generated runtime data is escaped against script termination and prototype-pollution-style arguments are rejected.
 - Hidden Framer breakpoint duplicates and inactive steps are excluded.
 - Async network and chat operations accept the WebMCP execution cancellation signal.
@@ -76,3 +79,4 @@ These are operational dependencies rather than missing product code:
 6. Route the MCP gateway at the Framer custom domain's `/mcp`, enable Cloudflare Agent Readiness → WebMCP, and select the Site MCP Server and optional Content Credentials packs.
 7. Submit the packed plugin for Framer Marketplace review.
 8. Record the demo video and complete the Devpost submission before the official deadline.
+9. Register the final published origin in Chrome's WebMCP origin trial, install the token with AgentReady, and verify it plus the registered tools in Chrome DevTools or the Model Context Tool Inspector.

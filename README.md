@@ -26,7 +26,7 @@ Browser agents normally infer intent from pixels and DOM structure. WebMCP lets 
 | Cloudflare Pay Per Crawl | Advertise pricing and permitted purposes and serve licensed structured JSON with a content digest | Cloudflare performs crawler identity, enforcement, settlement, and charge evidence |
 | Knowledge and trust | Cloudflare AI Search, cited answers, same-origin SHA-256 attestations, anonymous metrics, and Browser Run verification | Retrieved content is untrusted; administration and secrets stay server-side |
 
-The complete Direct runtime contains **30 optional tools**. A site only publishes the capabilities its owner enables, so counts vary by configuration. As of **September 4, 2026**, the public Framer demo exposes **17 browser-local tools** and is checked end to end by `npm run test:live`.
+The complete Direct runtime contains **30 optional tools**. A site only publishes the capabilities its owner enables, so counts vary by configuration. As of **September 4, 2026**, the public Framer demo's current managed runtime exposes **18 browser-local tools** and is checked end to end by `npm run test:live`.
 
 The exact inventory and boundaries are documented in [docs/capability-matrix.md](docs/capability-matrix.md).
 
@@ -54,7 +54,9 @@ Framer plugin
 
 Hybrid moves ten network-backed tools to the same-origin `/mcp` gateway, preserves the remaining browser-state tools locally, and adds `agentready_edge_status`. It de-duplicates names automatically. Cloudflare's optional external Content Credentials pack adds two more image-metadata tools; those tools are managed by Cloudflare and are not included in the AgentReady counts above.
 
-The runtime follows the current WebMCP specification source: valid bounded names, user-facing titles, narrow JSON Schemas, observed registration Promises, abortable registration and execution, the standardized `readOnlyHint` and `untrustedContentHint` annotations, visible UI state changes, and human review for sensitive or irreversible actions. The normative declarative section remains incomplete, so AgentReady uses imperative tools for Framer custom controls, multi-step state, chat, commerce, and explicit safety boundaries.
+The runtime follows the current WebMCP specification source and Chrome 149+ origin-trial guidance: user-facing titles, narrow JSON Schemas, observed registration Promises, abortable registration and execution, the standardized `readOnlyHint` and `untrustedContentHint` annotations, visible UI state changes, and human review for sensitive or irreversible actions. AgentReady applies Chrome's defensive metadata budgets (30-character names, 500-character tool descriptions, and 150-character parameter descriptions) and bounds each returned result to 1,500 characters. Oversized responses become a structured, retryable truncation result that tells the agent how to narrow the call.
+
+Chrome's origin trial supports both imperative and declarative tools. AgentReady uses imperative tools for Framer custom controls, multi-step state, chat, commerce, and explicit safety boundaries. Native forms that already declare `toolname` are left to Chrome's declarative API instead of receiving overlapping imperative behavior; AgentReady also styles `:tool-form-active` and `:tool-submit-active` and mirrors `toolactivated` / `toolcancel` into an `agentready:declarative-state` event.
 
 ## Try the live demo
 
@@ -88,6 +90,8 @@ In Framer, enable Plugin Developer Tools and choose **Open Development Plugin**.
 ```text
 Scan project → Review capabilities → Choose delivery → Install tools → Publish → Test
 ```
+
+For Chrome 149+ live testing, register the published first-party origin in the WebMCP origin trial and paste the complete token into **Chrome 149+ Origin Trial**. AgentReady installs it as an `origin-trial` meta element at the start of the document head. The token is origin-bound, public activation metadata—not a secret. For local development, leave it empty and enable `chrome://flags/#enable-webmcp-testing` instead.
 
 Build the Framer Marketplace archive with `npm run pack`. Workspace teams may instead host the static `dist` directory on Vercel or Cloudflare Pages, with `framer.json` at the deployment root. Plugin UI hosting is separate from the optional Workers that provide edge integrations.
 
@@ -161,6 +165,17 @@ npm run typecheck --prefix cloudflare
 AGENTREADY_DEMO_URL=https://agentready.framer.website npm run test:live
 ```
 
+The current Framer project still contains one user-managed legacy AgentReady Custom Code entry in addition to the plugin-managed entry. Live validation selects and reports the newest runtime and warns about the duplicate; after the owner removes the legacy entry, set `AGENTREADY_STRICT_INSTALLATION=1` to require exactly one installation.
+
+Then inspect the real browser surface in Chrome 149+:
+
+1. Confirm the Origin Trial entry is valid in **DevTools → Application → Frames → Top** (or use the local WebMCP testing flag).
+2. Inspect registered tools and invocation history in Chrome's WebMCP debugging UI or the Model Context Tool Inspector extension.
+3. Verify `window.__agentReadyRegistration` resolves with `ready: true` and no failed registrations.
+4. Exercise one read-only tool, one visible form-preparation tool, cancellation of a waiting tool, and one human-only refusal.
+
+Official references: [WebMCP overview](https://developer.chrome.com/docs/ai/webmcp), [origin trial](https://developer.chrome.com/blog/ai-webmcp-origin-trial), [secure tools](https://developer.chrome.com/docs/ai/webmcp/secure-tools), and [origin-trial setup](https://developer.chrome.com/docs/web-platform/origin-trials).
+
 CI runs type checking, linting, the runtime and gateway tests, the demo component check, production build, plugin packaging, Cloudflare type checking, and dry-run builds for all five Workers.
 
 ## Current limitations
@@ -170,6 +185,7 @@ CI runs type checking, linting, the runtime and gateway tests, the demo componen
 - The scanner currently covers the active canvas and project CMS collections.
 - Cross-origin iframes, hosted card fields, and closed Shadow DOM are intentionally opaque.
 - WebMCP remains experimental and host support varies.
+- Origin-trial tokens expire and must match the exact published origin. Verify status in Chrome DevTools; feature detection remains authoritative.
 - Automatic MPP/x402 fulfillment requires a compatible payment-aware host. Other hosts can inspect the challenge and continue through a human handoff.
 - A production AgentReady purchase requires a configured Shopify product or HTTPS checkout URL. No merchant credentials or simulated completed payments ship in this repository.
 - Pay Per Crawl requires an enrolled Cloudflare zone. The Worker adds structured JSON; Cloudflare performs billing enforcement.

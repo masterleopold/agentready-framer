@@ -7,7 +7,7 @@ Reviewed on 2026-09-04 against [`webmachinelearning/webmcp` commit `55fb7ee`](ht
 | Specification requirement | AgentReady implementation |
 | --- | --- |
 | `document.modelContext` is available only in secure contexts | The generated script is a progressive enhancement and exits without changing the page when the API is unavailable |
-| Tool names are 1–128 ASCII alphanumeric, `_`, `-`, or `.` characters | Registration validates every generated name before calling the browser API; tests enforce the same pattern |
+| Tool names are 1–128 ASCII alphanumeric, `_`, `-`, or `.` characters | Registration validates every generated name before calling the browser API; AgentReady intentionally enforces the same grammar with a stricter 30-character cap |
 | `registerTool()` returns a Promise and rejects duplicate or invalid definitions | AgentReady observes every registration Promise, records failures in `window.__agentReadyRegistration`, and emits `agentready:ready` only with the settled result |
 | `title` is the user-facing label | Every local and gateway tool receives a non-empty human-readable title; English is the current fallback |
 | `inputSchema` is JSON Schema and tool results must be JSON-serializable | Inputs use bounded schemas and `additionalProperties: false` where AgentReady owns the schema; tests execute every tool and inspect its result |
@@ -17,13 +17,28 @@ Reviewed on 2026-09-04 against [`webmachinelearning/webmcp` commit `55fb7ee`](ht
 | The `tools` Permissions Policy defaults to `self` and the API requires an origin-keyed agent cluster | The optional Cloudflare HTML proxy explicitly adds `Permissions-Policy: tools=(self)` and `Origin-Agent-Cluster: ?1`; cross-origin exposure is not enabled. The direct `framer.website` demo cannot configure these response headers on its current free plan, so strict production conformance requires the Worker/custom-domain path or a Framer plan with custom headers |
 | Registrations are tied to a fully-active document | AgentReady does not claim background persistence; navigation creates a new page runtime |
 
+AgentReady deliberately tightens the first row to Chrome's security guidance: generated tool and parameter names may be at most 30 characters even though the specification permits 128. Tool descriptions are limited to 500 characters, parameter descriptions to 150, and each JSON-serialized result to 1,500 characters. These are Chrome recommendations, not additional WebMCP conformance requirements.
+
 The draft also defines `getTools()`, `executeTool()`, `toolchange`, same-origin descendant discovery, and explicit cross-origin `exposedTo`/`fromOrigins`. AgentReady is a tool provider and does not need to invoke `getTools()` or `executeTool()`. It intentionally omits `exposedTo`, so it does not opt tools into cross-origin iframe discovery.
 
-## Declarative API explainer
+## Chrome 149+ origin-trial implementation
+
+Chrome's origin trial exposes both the imperative and declarative APIs. AgentReady now:
+
+- installs an optional first-party `origin-trial` meta token in Framer `headStart`, before the body runtime accesses the feature;
+- feature-detects `document.modelContext`, because invalid, expired, origin-mismatched, or usage-limited tokens are ignored;
+- supports flag-based local testing at `chrome://flags/#enable-webmcp-testing` without requiring a token;
+- leaves forms with `toolname` to Chrome's declarative API, preventing an overlapping imperative form surface;
+- provides visible active-state styling and mirrors `toolactivated` / `toolcancel` events for site diagnostics;
+- exposes settled imperative registration state at `window.__agentReadyRegistration` for Chrome DevTools or the Model Context Tool Inspector.
+
+The token is public activation metadata and must be registered for the exact first-party origin. It is not an API secret and it expires with the trial enrollment.
+
+## Declarative API explainer and implementation boundary
 
 The declarative proposal currently describes `toolname`, `tooldescription`, `toolparamdescription`, optional `toolautosubmit`, form response handling, and active-form pseudo-classes. The normative declarative section in `index.bs` remains a TODO, including schema synthesis and cross-document response behavior.
 
-AgentReady therefore uses the imperative API for Framer custom controls, multi-step state, chat, commerce, and safety-sensitive forms. It recommends declarative markup only for simple native forms whose owner accepts origin-trial behavior, and never registers an overlapping declarative and imperative tool for the same action.
+AgentReady therefore uses the imperative API for Framer custom controls, multi-step state, chat, commerce, and safety-sensitive forms. It interoperates with Chrome's origin-trial declarative implementation for simple native forms and never registers an overlapping declarative and imperative tool for the same form.
 
 For accessible form discovery, AgentReady resolves `aria-labelledby`, then `aria-label`, then native labels, and separately returns `aria-describedby`, `aria-description`, or `toolparamdescription` text. This follows accessible-name semantics more closely while [the declarative mapping discussion](https://github.com/webmachinelearning/webmcp/issues/286) remains open.
 
@@ -51,6 +66,8 @@ These are defensive AgentReady conventions, not claims that the proposals are st
 - Tool collections, skills, progress events, structured refusal types, sensitive hints, output schemas, user-interaction requests, consequential hints, and human-only-control attributes remain open proposals. AgentReady uses local conventions only where they improve safety without changing the browser API contract.
 - Cross-origin tool exposure is disabled. A future opt-in must require both the `tools` Permissions Policy delegation and an explicit, validated `exposedTo` origin list.
 
+Chrome documents a proposed `requestUserInteraction()` mechanism, but its contract remains under specification discussion. AgentReady does not feature-detect or call it yet; sensitive actions remain split into preparation, review, and human-only completion.
+
 ## Primary sources
 
 - [WebMCP repository and explainer](https://github.com/webmachinelearning/webmcp)
@@ -59,3 +76,9 @@ These are defensive AgentReady conventions, not claims that the proposals are st
 - [Service-worker supplemental explainer](https://github.com/webmachinelearning/webmcp/blob/main/docs/service-workers.md)
 - [Security and privacy questionnaire](https://github.com/webmachinelearning/webmcp/blob/main/security-privacy-questionnaire.md)
 - [Open issues](https://github.com/webmachinelearning/webmcp/issues)
+- [Chrome WebMCP overview](https://developer.chrome.com/docs/ai/webmcp)
+- [Chrome WebMCP origin trial](https://developer.chrome.com/blog/ai-webmcp-origin-trial)
+- [Chrome secure-tool guidance](https://developer.chrome.com/docs/ai/webmcp/secure-tools)
+- [Chrome imperative API](https://developer.chrome.com/docs/ai/webmcp/imperative-api)
+- [Chrome declarative API](https://developer.chrome.com/docs/ai/webmcp/declarative-api)
+- [Chrome best practices](https://developer.chrome.com/docs/ai/webmcp/best-practices)

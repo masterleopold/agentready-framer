@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import { JSDOM } from "jsdom"
-import { buildWebMcpCustomCode } from "../src/runtime"
+import { buildOriginTrialCustomCode, buildWebMcpCustomCode } from "../src/runtime"
 import type { RuntimeConfig } from "../src/types"
 
 const expectedTools = [
@@ -33,6 +33,9 @@ const config: RuntimeConfig = {
 }
 
 const html = buildWebMcpCustomCode(config)
+assert.equal(buildOriginTrialCustomCode("  demo-token-with-enough-characters-1234567890+/=  "), '<meta id="agentready-webmcp-origin-trial" http-equiv="origin-trial" content="demo-token-with-enough-characters-1234567890+/=">')
+assert.equal(buildOriginTrialCustomCode(""), null)
+assert.ok(buildOriginTrialCustomCode('token-with-quote-"-and-ampersand-&')?.includes("&quot;-and-ampersand-&amp;"))
 assert.ok(html.startsWith('<script id="agentready-webmcp">'))
 assert.ok(html.endsWith("</script>"))
 assert.equal((html.match(/<script/g) ?? []).length, 1, "inline data must not open another script tag")
@@ -86,6 +89,11 @@ const dom = new JSDOM(`<!doctype html><html><body>
     <form id="duplicate-application"><label>Duplicate <input name="duplicate"></label></form>
   </section>
 
+  <form toolname="declarative_contact" tooldescription="Prepare a contact request.">
+    <label>Email <input name="email" toolparamdescription="Where the reply should be sent."></label>
+    <button type="submit">Prepare</button>
+  </form>
+
   <form id="checkout" aria-label="Payment checkout">
     <label>Billing email <input name="billingEmail" autocomplete="billing email"></label>
     <label>Card number <input name="cardNumber" autocomplete="cc-number" value="4242424242424242"></label>
@@ -104,6 +112,12 @@ const dom = new JSDOM(`<!doctype html><html><body>
     </form>
   </section>
 </body></html>`, { url: "https://example.com/", runScripts: "outside-only" })
+
+for (let index = 0; index < 8; index += 1) {
+  const paragraph = dom.window.document.createElement("p")
+  paragraph.textContent = `oversized result ${index} ${"x".repeat(500)}`
+  dom.window.document.body.append(paragraph)
+}
 
 const registered = new Map<string, RegisteredTool>()
 const registrationSignals: AbortSignal[] = []
@@ -199,14 +213,39 @@ assert.equal(registrationStatus.registered, 30)
 assert.equal(registrationSignals.length, 30)
 assert.ok(registrationSignals.every((signal) => !signal.aborted))
 for (const tool of registered.values()) {
-  assert.match(tool.name, /^[A-Za-z0-9_.-]{1,128}$/)
+  assert.match(tool.name, /^[A-Za-z0-9_.-]{1,30}$/)
   assert.ok(tool.title.length > 0, `${tool.name} must expose a user-facing title`)
+  assert.ok(tool.description.length <= 500, `${tool.name} description exceeds Chrome's recommended budget`)
   assert.ok(Object.keys(tool.annotations ?? {}).every((key) => ["readOnlyHint", "untrustedContentHint"].includes(key)), `${tool.name} registered a non-standard WebMCP annotation`)
 }
+
+const inspectSchemaMetadata = (schema: Record<string, unknown> | undefined, path = "input") => {
+  if (!schema) return
+  if (typeof schema.description === "string") assert.ok(schema.description.length <= 150, `${path} description exceeds Chrome's recommended budget`)
+  const properties = schema.properties as Record<string, Record<string, unknown>> | undefined
+  for (const [name, child] of Object.entries(properties ?? {})) {
+    assert.ok(name.length <= 30, `${path}.${name} exceeds Chrome's recommended name budget`)
+    inspectSchemaMetadata(child, `${path}.${name}`)
+  }
+  const items = schema.items as Record<string, unknown> | undefined
+  if (items) inspectSchemaMetadata(items, `${path}[]`)
+  for (const keyword of ["anyOf", "oneOf", "allOf"] as const) {
+    for (const child of (schema[keyword] as Array<Record<string, unknown>> | undefined) ?? []) inspectSchemaMetadata(child, path)
+  }
+}
+for (const tool of registered.values()) inspectSchemaMetadata(tool.inputSchema)
 
 const run = (name: string, input: Record<string, unknown> = {}) => registered.get(name)!.execute(input)
 
 assert.equal((await run("search_site", { query: "multi-step" })).count, 1)
+const oversized = await run("search_site", { query: "oversized" })
+assert.equal(oversized.outcome, "truncated")
+assert.equal(oversized.retryable, true)
+assert.ok(JSON.stringify(oversized).length <= 1500)
+const declarativeEvent = new dom.window.Event("toolactivated")
+Object.defineProperty(declarativeEvent, "toolName", { value: "declarative_contact" })
+dom.window.dispatchEvent(declarativeEvent)
+assert.equal(dom.window.document.documentElement.dataset.agentreadyToolState, "active")
 assert.equal((await run("search_site_knowledge", { query: "agent" })).count, 1)
 assert.match(String((await run("answer_from_site", { question: "What is AgentReady?" })).answer), /Framer/)
 assert.match(String((await run("get_content_provenance")).contentDigest), /^sha-256=/)
@@ -215,12 +254,17 @@ assert.equal((await run("get_collection_item", { slug: "agent-kit" })).found, tr
 
 const inspected = await run("inspect_forms")
 assert.equal(inspected.count, 3)
-const inspectedForms = inspected.forms as Array<{ fields: InspectedField[]; validation: { valid: boolean }; usesCurrentVisibleValues: boolean }>
-const checkoutCard = inspectedForms[1].fields.find((field) => field.key === "cardNumber")!
+const inspectedForms = inspected.forms as Array<{ formIndex: number; fieldCount: number; valid: boolean }>
+assert.equal(inspectedForms[0].valid, false)
+assert.ok(inspectedForms[0].fieldCount >= 12)
+const inspectedApplication = await run("inspect_forms", { formIndex: 0, fieldLimit: 4 })
+assert.equal((inspectedApplication.validation as { valid: boolean }).valid, false)
+assert.equal(inspectedApplication.usesCurrentVisibleValues, true)
+assert.equal(inspectedApplication.nextFieldOffset, 4)
+const inspectedCheckout = await run("inspect_forms", { formIndex: 1, fieldLimit: 8 })
+const checkoutCard = (inspectedCheckout.fields as InspectedField[]).find((field) => field.key === "cardNumber")!
 assert.equal(checkoutCard.sensitive, true)
 assert.equal(checkoutCard.value, undefined)
-assert.equal(inspectedForms[0].validation.valid, false)
-assert.equal(inspectedForms[0].usesCurrentVisibleValues, true)
 
 const filled = await run("prefill_form", { formIndex: 0, values: { fullName: "Ada Lovelace", plan: "pro", interests: ["design", "ai"], budget: 80 } })
 assert.equal(filled.filled, true)

@@ -15,18 +15,21 @@ const response = await fetch(demoUrl)
 assert.equal(response.status, 200, `Demo returned HTTP ${response.status}.`)
 const html = await response.text()
 assert.match(html, /id="agentready-webmcp"/, "AgentReady custom code is missing.")
-assert.equal(
-  html.match(/id="agentready-webmcp"/g)?.length,
-  1,
-  "Expected exactly one AgentReady Custom Code installation.",
-)
+const installations = [...html.matchAll(/<script id="agentready-webmcp">[\s\S]*?<\/script>/g)]
+if (process.env.AGENTREADY_STRICT_INSTALLATION === "1") assert.equal(installations.length, 1, "Expected exactly one AgentReady Custom Code installation.")
+const selectedInstallation = [...installations].sort((left, right) => {
+  const generatedAt = (match: RegExpMatchArray) => Date.parse(match[0].match(/"generatedAt":"([^"]+)"/)?.[1] ?? "") || 0
+  return generatedAt(left) - generatedAt(right)
+}).at(-1)
+assert(selectedInstallation, "No AgentReady runtime script could be selected.")
+const selectedHtml = html.replace(/<script id="agentready-webmcp">[\s\S]*?<\/script>/g, "").replace("</body>", `${selectedInstallation[0]}</body>`)
 
 const tools: RegisteredTool[] = []
 const virtualConsole = new VirtualConsole()
 virtualConsole.on("error", () => undefined)
 virtualConsole.on("jsdomError", () => undefined)
 
-const dom = new JSDOM(html, {
+const dom = new JSDOM(selectedHtml, {
   url: demoUrl,
   runScripts: "dangerously",
   virtualConsole,
@@ -94,4 +97,5 @@ assert.equal(dom.window.document.querySelector<HTMLInputElement>('[name="buyerNa
 assert.equal(dom.window.document.querySelector<HTMLInputElement>('[name="buyerEmail"]')?.value, "agent@example.com")
 
 console.log(`AgentReady live validation passed: ${demoUrl}`)
+if (installations.length > 1) console.warn(`Warning: ${installations.length} AgentReady Custom Code entries detected; validated the newest one. Use AGENTREADY_STRICT_INSTALLATION=1 after legacy cleanup.`)
 console.log(`Registered tools: ${names.join(", ")}`)

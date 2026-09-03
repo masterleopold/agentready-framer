@@ -29,6 +29,7 @@ yarn-error.log\*
 .env\*.local
 .dev.vars
 .wrangler/
+.playwright-mcp/
 
 # Packed plugin
 

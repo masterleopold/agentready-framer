@@ -19,7 +19,7 @@ AgentReady separates preparation, external actions, and irreversible actions. A 
 | Cloudflare intelligence | AI Search hybrid retrieval and cited answers, same-origin SHA-256 attestations, anonymous per-tool metrics, and Browser Run release verification | Cloudflare account management and admin verification remain server-side; prompts, form values, payment data, and chat text are not analytics fields |
 | Cloudflare WebMCP bridge | Edge-inject the WebMCP bridge and compose the same-origin Site MCP Server and Content Credentials packs | Hybrid keeps UI state local; the preview C2PA pack decodes metadata but does not cryptographically verify signatures |
 
-All registered tools receive a user-facing `title`. The browser-facing adapter emits only the current WebMCP `readOnlyHint` and `untrustedContentHint` annotations. AgentReady represents policy refusals with a provisional structured envelope and marks sensitive confirmation controls as human-only; both conventions are documented in [the WebMCP specification audit](webmcp-spec-audit.md) rather than presented as standardized API fields.
+All registered tools receive a user-facing `title`. The browser-facing adapter emits only the current WebMCP `readOnlyHint` and `untrustedContentHint` annotations. Tool/schema metadata and result sizes are bounded to Chrome's secure-tool recommendations; oversized results return retryable narrowing guidance. AgentReady represents policy refusals with a provisional structured envelope and marks sensitive confirmation controls as human-only; both conventions are documented in [the WebMCP specification audit](webmcp-spec-audit.md) rather than presented as standardized API fields.
 
 ## Tool inventory
 
@@ -34,7 +34,7 @@ The full configured runtime registers 30 tools:
 - Crawl monetization: `discover_paid_content`
 - Knowledge and trust: `search_site_knowledge`, `answer_from_site`, `get_content_provenance`
 
-`npm test` runs all 30 tools against a browser fixture containing a multi-step application, address fields, radios, checkboxes, date/time inputs, a file input, hidden breakpoint duplicates, a conversational UI, a sensitive checkout, native Shopify MCP/UCP endpoints with discovery, an MPP challenge, paid-crawl policy, AI Search results, a cited answer, and a provenance attestation.
+`npm test` runs all 30 tools against a browser fixture containing a multi-step application, a separate declarative WebMCP form, address fields, radios, checkboxes, date/time inputs, a file input, hidden breakpoint duplicates, a conversational UI, a sensitive checkout, native Shopify MCP/UCP endpoints with discovery, an MPP challenge, paid-crawl policy, AI Search results, a cited answer, and a provenance attestation. It also verifies Chrome's metadata/output budgets, declarative lifecycle state, Origin Trial markup escaping, and imperative/declarative de-duplication.
 
 Hybrid adds `agentready_edge_status`, moves ten network-backed tools to the same-origin `/mcp` gateway, and keeps the remaining browser-state tools local. Cloudflare Bridge mode exposes up to 11 gateway tools without registering local tools. Enabling Cloudflare's external Content Credentials pack adds its two image-provenance tools; these are counted as expected edge tools in the plugin but are activated in the Cloudflare dashboard.
 
