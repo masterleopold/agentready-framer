@@ -1,5 +1,18 @@
 # Framer Marketplace listing
 
+Prepared against Framer's official [Publishing your Plugin](https://www.framer.com/developers/publishing) workflow.
+
+## Official publication procedure
+
+1. Confirm the plugin name and manifest icon.
+2. Test the core flows across different project states and browsers.
+3. Check the complete UI in Framer light and dark themes.
+4. Run `npm run pack` at the repository root.
+5. Open the [Framer Marketplace plugin dashboard](https://www.framer.com/marketplace/dashboard/plugins/) and choose **New Plugin**.
+6. Upload the generated `plugin.zip`, add the listing copy and media below, and submit.
+
+Uploading and submitting creates the public Marketplace entry. Keep that final action for the project owner's explicit review.
+
 ## Listing
 
 - **Name:** AgentReady
