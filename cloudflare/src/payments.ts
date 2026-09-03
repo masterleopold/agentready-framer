@@ -8,7 +8,9 @@ interface PaymentEnv {
   MPP_SECRET_KEY: string
   MPP_RECIPIENT: `0x${string}`
   MPP_CURRENCY: string
-  OFFER_AMOUNT: string
+  CREATOR_AMOUNT: string
+  STUDIO_AMOUNT: string
+  AGENCY_AMOUNT: string
 }
 
 const workerEnv = env as PaymentEnv
@@ -25,32 +27,33 @@ app.use("*", cors({
   exposeHeaders: ["WWW-Authenticate", "Payment-Required", "Payment-Response", "Payment-Receipt"],
 }))
 
+const offers = [
+  { id: "agentready-creator", title: "AgentReady Creator", description: "AgentReady for one Framer workspace.", amount: workerEnv.CREATOR_AMOUNT },
+  { id: "agentready-studio", title: "AgentReady Studio", description: "AgentReady for up to five Framer workspaces.", amount: workerEnv.STUDIO_AMOUNT },
+  { id: "agentready-agency", title: "AgentReady Agency", description: "AgentReady for unlimited client sites.", amount: workerEnv.AGENCY_AMOUNT },
+] as const
+
 app.get("/v1/offers", (context) => context.json({
-  offers: [{
-    id: "agentready-plugin-license",
-    title: "AgentReady for Framer license",
-    description: "A testnet purchase of the AgentReady plugin that demonstrates an HTTP 402 payment challenge and receipt.",
-    amount: workerEnv.OFFER_AMOUNT,
-    protocol: "MPP",
-    network: "Tempo testnet",
-  }],
+  offers: offers.map((offer) => ({ ...offer, protocol: "MPP", network: "Tempo testnet", currency: workerEnv.MPP_CURRENCY })),
 }))
 
-app.get(
-  "/v1/offers/agentready-plugin-license/purchase",
-  payments.charge({
-    amount: workerEnv.OFFER_AMOUNT,
-    currency: workerEnv.MPP_CURRENCY,
-    description: "AgentReady for Framer plugin license",
-    recipient: workerEnv.MPP_RECIPIENT,
-    externalId: "agentready-plugin-license",
-  }),
-  (context) => context.json({
-    purchased: true,
-    offerId: "agentready-plugin-license",
-    entitlement: "agentready-plugin-license-demo",
-    message: "Payment verified. The protocol receipt is attached to this response.",
-  }),
-)
+for (const offer of offers) {
+  app.get(
+    "/v1/offers/" + offer.id + "/purchase",
+    payments.charge({
+      amount: offer.amount,
+      currency: workerEnv.MPP_CURRENCY,
+      description: offer.title,
+      recipient: workerEnv.MPP_RECIPIENT,
+      externalId: offer.id,
+    }),
+    (context) => context.json({
+      purchased: true,
+      offerId: offer.id,
+      entitlement: offer.id + "-demo",
+      message: "Payment verified. The protocol receipt is attached to this response.",
+    }),
+  )
+}
 
 export default app

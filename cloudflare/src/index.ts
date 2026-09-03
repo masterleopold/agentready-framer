@@ -89,8 +89,10 @@ async function upload(request: Request, env: Env, sessionId: string, origin: str
   const length = Number(request.headers.get("content-length") ?? 0)
   if (length > maxBytes) return json({ error: "Upload exceeds configured limit" }, 413, cors(origin))
   const contentType = request.headers.get("content-type") ?? "application/octet-stream"
+  const body = await request.arrayBuffer()
+  if (body.byteLength > maxBytes) return json({ error: "Upload exceeds configured limit" }, 413, cors(origin))
   const key = `${sessionId}/${crypto.randomUUID()}`
-  await env.UPLOADS.put(key, request.body, { httpMetadata: { contentType }, customMetadata: { source: "agentready-human-handoff" } })
+  await env.UPLOADS.put(key, body, { httpMetadata: { contentType }, customMetadata: { source: "agentready-human-handoff" } })
   await sessionStub(env, sessionId).fetch("https://session/events", { method: "POST", body: JSON.stringify({ type: "upload.ready", summary: "A human-selected file was stored for this session" }) })
   return json({ uploaded: true, objectKey: key, contentType }, 201, cors(origin))
 }

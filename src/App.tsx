@@ -21,6 +21,7 @@ const CAPABILITIES: Array<{ id: CapabilityId; title: string; description: string
 ]
 
 const DEFAULT_CAPABILITIES: CapabilityId[] = ["siteSearch", "cmsSearch", "navigation", "formFill", "conversation", "checkoutAssist"]
+const SETTINGS_KEY = "agentready:settings:v1"
 
 function primitiveValue(value: unknown): unknown {
   if (value === null || typeof value === "string" || typeof value === "number" || typeof value === "boolean") return value
@@ -68,6 +69,7 @@ export function App() {
   const [paymentEndpoint, setPaymentEndpoint] = useState("")
   const [crawlPrice, setCrawlPrice] = useState("0.01")
   const [allowAiTraining, setAllowAiTraining] = useState(false)
+  const [settingsLoaded, setSettingsLoaded] = useState(false)
 
   const refreshInstallStatus = useCallback(async () => {
     const [customCode, publishInfo] = await Promise.all([
@@ -101,6 +103,38 @@ export function App() {
   }, [])
 
   useEffect(() => { void Promise.all([runScan(), refreshInstallStatus()]) }, [refreshInstallStatus, runScan])
+
+  useEffect(() => {
+    void framer.getPluginData(SETTINGS_KEY).then((stored) => {
+      if (!stored) return
+      try {
+        const parsed = JSON.parse(stored) as Partial<{
+          enabled: CapabilityId[]
+          shopifyDomain: string
+          shopifyToken: string
+          paymentEndpoint: string
+          crawlPrice: string
+          allowAiTraining: boolean
+        }>
+        if (Array.isArray(parsed.enabled)) setEnabled(parsed.enabled.filter((id): id is CapabilityId => CAPABILITIES.some((capability) => capability.id === id)))
+        if (typeof parsed.shopifyDomain === "string") setShopifyDomain(parsed.shopifyDomain)
+        if (typeof parsed.shopifyToken === "string") setShopifyToken(parsed.shopifyToken)
+        if (typeof parsed.paymentEndpoint === "string") setPaymentEndpoint(parsed.paymentEndpoint)
+        if (typeof parsed.crawlPrice === "string") setCrawlPrice(parsed.crawlPrice)
+        if (typeof parsed.allowAiTraining === "boolean") setAllowAiTraining(parsed.allowAiTraining)
+      } catch {
+        framer.notify("Saved AgentReady settings could not be read.", { variant: "warning" })
+      }
+    }).finally(() => setSettingsLoaded(true))
+  }, [])
+
+  useEffect(() => {
+    if (!settingsLoaded) return
+    const timeout = window.setTimeout(() => {
+      void framer.setPluginData(SETTINGS_KEY, JSON.stringify({ enabled, shopifyDomain, shopifyToken, paymentEndpoint, crawlPrice, allowAiTraining }))
+    }, 250)
+    return () => window.clearTimeout(timeout)
+  }, [allowAiTraining, crawlPrice, enabled, paymentEndpoint, settingsLoaded, shopifyDomain, shopifyToken])
 
   const validShopifyDomain = /^[a-z0-9][a-z0-9-]*\.myshopify\.com$/i.test(shopifyDomain.trim().replace(/^https?:\/\//, "").replace(/\/$/, ""))
   const validPaymentEndpoint = /^https:\/\/[a-z0-9.-]+(?::\d+)?(?:\/.*)?$/i.test(paymentEndpoint.trim())
@@ -176,6 +210,21 @@ export function App() {
     }
   }
 
+  const removeTools = async () => {
+    if (!window.confirm("Remove AgentReady WebMCP Custom Code from this site? The site must be published again for visitors to receive the change.")) return
+    setStatus("publishing")
+    setError(null)
+    try {
+      await framer.setCustomCode({ html: null, location: "bodyEnd" })
+      await refreshInstallStatus()
+      framer.notify("AgentReady WebMCP tools removed", { variant: "success" })
+    } catch (removeError) {
+      setError(removeError instanceof Error ? removeError.message : "Could not remove WebMCP tools.")
+    } finally {
+      setStatus("idle")
+    }
+  }
+
   return (
     <main>
       <header className="hero">
@@ -237,6 +286,7 @@ export function App() {
         <div className="footer-actions">
           <button className="publish-button" onClick={() => void publish()} disabled={!canPublish || !scan || effectiveEnabled.length === 0 || status !== "idle"}>{status === "publishing" ? "Installing…" : installed ? "Update tools" : "Install tools"}<span>→</span></button>
           {installed && <button className="deploy-button" onClick={() => void deploySite()} disabled={!canDeploy || disabledByUser || status !== "idle"}>{status === "deploying" ? "Publishing site…" : "Publish site"}</button>}
+          {installed && <button className="remove-button" onClick={() => void removeTools()} disabled={!canPublish || status !== "idle"}>Remove tools</button>}
           {publishedUrl && <a className="live-link" href={publishedUrl} target="_blank" rel="noreferrer">Open live site ↗</a>}
         </div>
       </footer>

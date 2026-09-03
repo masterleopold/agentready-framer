@@ -8,7 +8,9 @@
     "ALLOWED_ORIGIN": "https://example.framer.website",
     "MPP_RECIPIENT": "0x0000000000000000000000000000000000000000",
     "MPP_CURRENCY": "0x20c0000000000000000000000000000000000000",
-    "OFFER_AMOUNT": "0.01"
+    "CREATOR_AMOUNT": "49",
+    "STUDIO_AMOUNT": "149",
+    "AGENCY_AMOUNT": "399"
   },
   "observability": { "enabled": true }
 }

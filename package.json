@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit",
     "test": "tsx scripts/validate-runtime.ts",
     "test:live": "tsx scripts/validate-live.ts",
+    "check:demo": "esbuild framer/AgentReadyPlayground.tsx --bundle --external:framer --external:react --outfile=/tmp/agentready-playground.js",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
     "pack": "npx framer-plugin-tools@latest pack"

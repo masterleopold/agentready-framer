@@ -38,7 +38,7 @@ The WebMCP runtime follows Chrome's imperative API guidance: capability-scoped t
 
 The public Framer Marketplace package is produced with `npm run pack`. Enterprise teams can alternatively self-host the static `dist` output as a Workspace Plugin on Vercel or Cloudflare Pages; `framer.json` must remain at the deployment root. This plugin UI hosting is separate from the optional Cloudflare Workers used for payments, uploads, and paid crawl delivery.
 
-See [the capability matrix](docs/capability-matrix.md) for the full 25-tool inventory and safety boundaries, and [the WebMCP design notes](docs/webmcp-design.md) for the Chrome API decisions.
+See [the request coverage audit](docs/request-coverage.md) for implementation and launch status, [the capability matrix](docs/capability-matrix.md) for the full 25-tool inventory and safety boundaries, and [the WebMCP design notes](docs/webmcp-design.md) for the Chrome API decisions.
 
 ## Development
 
@@ -60,8 +60,10 @@ Then open Framer, enable Plugin Developer Tools, and choose **Open Development P
 npm run typecheck
 npm run lint
 npm test
+npm run check:demo
 npm run build
 npm run pack
+npm run typecheck --prefix cloudflare
 ```
 
 `npm test` executes the generated runtime in a simulated browser and validates all tool behaviors. To verify the deployed Framer page end to end:
@@ -101,6 +103,8 @@ The ChatGPT built-in browser currently discovers imperative tools registered by 
 - Site scanning currently covers the active canvas plus project CMS collections.
 - WebMCP remains experimental and browser support varies.
 - A WebMCP host must be MPP/x402-aware to fulfill an agentic payment automatically; other hosts can still inspect the challenge and use a human payment handoff.
+- A real AgentReady purchase requires a configured Shopify product or HTTPS checkout URL; the repository does not ship merchant credentials or silently simulate a completed payment.
+- Cloudflare billing enforcement requires an enrolled zone and deployed Workers. Local/demo configuration only proves the protocol surface.
 
 ## Demo status
 

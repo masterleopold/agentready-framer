@@ -1,7 +1,13 @@
+import { agentReadyContentSchema } from "./content-schema"
+
 interface Env {
   CRAWLER_PRICE: string
   PAID_PATH_PREFIXES: string
   FRAMER_ORIGIN: string
+  CONTENT_LICENSE_ID?: string
+  CONTENT_LICENSE_URL?: string
+  CONTENT_USE?: "reference" | "full"
+  PERMITTED_PURPOSES?: string
 }
 
 type Heading = { level: number; text: string; id?: string }
@@ -43,7 +49,12 @@ function toBase64(buffer: ArrayBuffer) {
 }
 
 function jsonError(message: string, status: number) {
-  return new Response(JSON.stringify({ error: message }), { status, headers: { "content-type": "application/json; charset=utf-8" } })
+  return new Response(JSON.stringify({ error: message }), { status, headers: { "content-type": "application/json; charset=utf-8", "x-content-type-options": "nosniff" } })
+}
+
+function permittedPurposes(env: Env) {
+  const allowed = new Set(["search", "ai-input", "ai-train"])
+  return (env.PERMITTED_PURPOSES ?? "search,ai-input").split(",").map((value) => value.trim()).filter((value) => allowed.has(value))
 }
 
 async function structuredContent(request: Request, env: Env) {
@@ -97,7 +108,10 @@ async function structuredContent(request: Request, env: Env) {
         linkText = ""
         linkHref = element.getAttribute("href")
         element.onEndTag(() => {
-          if (linkHref && links.length < 500) links.push({ text: linkText.replace(/\s+/g, " ").trim().slice(0, 300), url: new URL(linkHref, sourceUrl).href })
+          if (linkHref && links.length < 500) {
+            const resolved = new URL(linkHref, sourceUrl)
+            if (resolved.protocol === "https:" || resolved.protocol === "http:") links.push({ text: linkText.replace(/\s+/g, " ").trim().slice(0, 300), url: resolved.href })
+          }
         })
       },
       text(chunk) { linkText += chunk.text },
@@ -108,7 +122,7 @@ async function structuredContent(request: Request, env: Env) {
     try { const parsed: unknown = JSON.parse(value); return Array.isArray(parsed) ? parsed : [parsed] } catch { return [] }
   })
   const body = {
-    schema: "https://agentready.dev/schemas/content/v1",
+    schema: new URL("/agentready/schema.json", request.url).href,
     version: 1,
     source: { url: sourceUrl.href, canonical, publisher: origin.hostname },
     retrievedAt: new Date().toISOString(),
@@ -119,15 +133,25 @@ async function structuredContent(request: Request, env: Env) {
     content: content.join("\n").slice(0, 100000),
     links,
     structuredData,
-    provenance: { generatedBy: "AgentReady Cloudflare Worker", sourceContentType: upstream.headers.get("content-type") },
+    license: {
+      identifier: env.CONTENT_LICENSE_ID || undefined,
+      url: env.CONTENT_LICENSE_URL || undefined,
+      contentUse: env.CONTENT_USE ?? "reference",
+      permittedPurposes: permittedPurposes(env),
+      attributionRequired: true,
+    },
+    provenance: { generatedBy: "AgentReady Cloudflare Worker", sourceContentType: upstream.headers.get("content-type"), requestId: request.headers.get("cf-ray") || crypto.randomUUID() },
   }
   const serialized = JSON.stringify(body)
   const digest = toBase64(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(serialized)))
   const response = new Response(serialized, { headers: {
     "content-type": "application/json; charset=utf-8",
     "cache-control": "public, max-age=300",
+    "link": "</agentready/schema.json>; rel=\"describedby\"; type=\"application/schema+json\"",
     "content-digest": `sha-256=:${digest}:`,
     "x-agentready-source": sourceUrl.href,
+    "x-content-license": env.CONTENT_LICENSE_ID || "agentready-site-policy",
+    "x-content-type-options": "nosniff",
     vary: "cf-pay-per-crawl",
   } })
   return withCrawlerPrice(response, request, env)
@@ -136,6 +160,20 @@ async function structuredContent(request: Request, env: Env) {
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url)
+    if (url.pathname === "/agentready/schema.json") return new Response(JSON.stringify(agentReadyContentSchema), { headers: { "content-type": "application/schema+json; charset=utf-8", "cache-control": "public, max-age=86400", "x-content-type-options": "nosniff" } })
+    if (url.pathname === "/.well-known/agentready.json") return new Response(JSON.stringify({
+      version: 1,
+      paidContent: {
+        endpoint: new URL("/agentready/content.json", url).href,
+        parameters: { path: { type: "string", default: "/", description: "Origin-relative Framer page path" } },
+        schema: new URL("/agentready/schema.json", url).href,
+        mediaType: "application/json",
+        price: env.CRAWLER_PRICE,
+        provider: "Cloudflare Pay Per Crawl",
+        permittedPurposes: permittedPurposes(env),
+        contentUse: env.CONTENT_USE ?? "reference",
+      },
+    }), { headers: { "content-type": "application/json; charset=utf-8", "cache-control": "public, max-age=300", "x-content-type-options": "nosniff" } })
     if (url.pathname === "/agentready/content.json") return structuredContent(request, env)
 
     const response = await fetch(request)

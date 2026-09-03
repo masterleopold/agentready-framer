@@ -271,6 +271,18 @@ footer {
 }
 .deploy-button:hover { background: #292929; }
 .deploy-button:disabled { opacity: .42; cursor: not-allowed; }
+.remove-button {
+  width: 100%;
+  padding: 7px 10px;
+  color: rgba(255, 255, 255, .42);
+  background: transparent;
+  border: 0;
+  border-radius: 7px;
+  font-size: 9px;
+  cursor: pointer;
+}
+.remove-button:hover { color: #ff8f8f; background: rgba(255, 76, 76, .08); }
+.remove-button:disabled { opacity: .35; cursor: not-allowed; }
 .live-link { color: #0099ff; font-size: 9px; font-weight: 500; text-align: center; text-decoration: none; }
 .live-link:hover { color: #55baff; }
 

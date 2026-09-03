@@ -76,6 +76,10 @@ const dom = new JSDOM(`<!doctype html><html><body>
     <button id="next" type="button">Next</button>
   </form>
 
+  <section hidden aria-label="Inactive Framer breakpoint">
+    <form id="duplicate-application"><label>Duplicate <input name="duplicate"></label></form>
+  </section>
+
   <form id="checkout" aria-label="Payment checkout">
     <label>Billing email <input name="billingEmail" autocomplete="billing email"></label>
     <label>Card number <input name="cardNumber" autocomplete="cc-number" value="4242424242424242"></label>
@@ -109,14 +113,14 @@ const shopifyCart = {
   lines: { nodes: [{ id: "gid://shopify/CartLine/1", quantity: 1, merchandise: { id: "gid://shopify/ProductVariant/1", title: "Default", product: { handle: "agent-kit", title: "Agent Kit" }, price: { amount: "29.00", currencyCode: "USD" }, selectedOptions: [] } }] },
 }
 Object.defineProperty(dom.window, "fetch", { value: async (url: string, init?: { body?: string }) => {
-  if (url.includes("agentready-payments.workers.dev/v1/offers/agentready-plugin-license/purchase")) return {
+  if (url.includes("agentready-payments.workers.dev/v1/offers/agentready-creator/purchase")) return {
     ok: false, status: 402,
     headers: { get: (name: string) => name.toLowerCase() === "www-authenticate" ? "Payment id=demo" : null },
     json: async () => ({ error: "Payment required" }),
   }
   if (url.endsWith("/v1/offers")) return {
     ok: true, status: 200, headers: { get: () => null },
-    json: async () => ({ offers: [{ id: "agentready-plugin-license", amount: "0.01" }] }),
+    json: async () => ({ offers: [{ id: "agentready-creator", amount: "49" }] }),
   }
   assert.ok(init?.body)
   const { query } = JSON.parse(init.body) as { query: string }
@@ -191,12 +195,15 @@ const shopifyCheckout = await run("prepare_shopify_checkout")
 assert.equal(shopifyCheckout.ready, true)
 assert.equal(shopifyCheckout.requiresUserAction, true)
 assert.equal((await run("inspect_agentic_offers")).available, true)
-const payment = await run("request_agentic_payment", { offerId: "agentready-plugin-license" })
+const payment = await run("request_agentic_payment", { offerId: "agentready-creator" })
 assert.equal(payment.paymentRequired, true)
 assert.equal(payment.protocol, "MPP")
 const crawlPolicy = await run("discover_paid_content")
 assert.equal((crawlPolicy.pricing as { amount: string }).amount, "0.01")
 assert.equal((crawlPolicy.permittedPurposes as string[]).includes("ai-train"), false)
+assert.equal((crawlPolicy.discovery as string), "https://example.com/.well-known/agentready.json")
+assert.equal((crawlPolicy.schema as string), "https://example.com/agentready/schema.json")
+assert.ok((crawlPolicy.evidence as string[]).includes("content license"))
 
 const checkout = await run("inspect_checkout")
 assert.equal(checkout.count, 1)

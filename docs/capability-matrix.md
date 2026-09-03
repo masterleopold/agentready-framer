@@ -15,7 +15,7 @@ AgentReady separates preparation, external actions, and irreversible actions. A 
 | Generic checkout | inspect and prepare plan, quantity, contact, address, shipping and coupon fields | PAN, CVV/CVC, bank details, passwords, OTPs, wallet auth, and final payment are human-only |
 | Shopify | product/variant search, cart create/read/update, discounts, buyer context, checkout URL | Cart secret is never returned. Shopify-hosted checkout owns payment authentication and confirmation |
 | Cloudflare Agentic Payments | discover offers and surface MPP HTTP 402 challenges/receipts | The paying agent owns its scoped key. No wallet private key is placed in Framer or WebMCP arguments |
-| Cloudflare Pay Per Crawl | expose crawler price, permitted purposes, a structured JSON content URL, content digest, and evidence guidance | Closed-beta Cloudflare zone setup performs enforcement and billing; AgentReady generates JSON while Pay Per Crawl itself is content-type agnostic |
+| Cloudflare Pay Per Crawl | expose crawler price, permitted purposes, discovery metadata, a JSON Schema, structured JSON-LD content, content digest, license, provenance, and evidence guidance | Cloudflare zone setup performs enforcement and billing; AgentReady generates JSON while Pay Per Crawl itself is content-type agnostic |
 
 ## Tool inventory
 
@@ -29,7 +29,7 @@ The full configured runtime registers 25 tools:
 - Cloudflare payments: `inspect_agentic_offers`, `request_agentic_payment`
 - Crawl monetization: `discover_paid_content`
 
-`npm test` runs all 25 tools against a browser fixture containing a multi-step application, address fields, radios, checkboxes, date/time inputs, a file input, a conversational UI, a sensitive checkout, a Shopify Storefront mock, an MPP challenge, and a paid-crawl policy.
+`npm test` runs all 25 tools against a browser fixture containing a multi-step application, address fields, radios, checkboxes, date/time inputs, a file input, hidden breakpoint duplicates, a conversational UI, a sensitive checkout, a Shopify Storefront mock, an MPP challenge, and a paid-crawl policy.
 
 ## Known limits
 
