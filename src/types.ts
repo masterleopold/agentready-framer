@@ -3,6 +3,12 @@ export type CapabilityId =
   | "cmsSearch"
   | "navigation"
   | "formFill"
+  | "conversation"
+  | "chatSend"
+  | "checkoutAssist"
+  | "shopifyCommerce"
+  | "agenticPayments"
+  | "payPerCrawl"
   | "formSubmit"
 
 export interface CmsFieldSnapshot {
@@ -40,4 +46,16 @@ export interface RuntimeConfig {
   generatedAt: string
   capabilities: CapabilityId[]
   collections: CmsCollectionSnapshot[]
+  shopify?: {
+    storeDomain: string
+    publicAccessToken?: string
+    apiVersion: string
+  }
+  cloudflarePayments?: { endpoint: string }
+  crawlMonetization?: {
+    currency: "USD"
+    pricePerRequest: string
+    purposes: { search: boolean; aiInput: boolean; aiTrain: boolean }
+    contentUse: "reference" | "full"
+  }
 }

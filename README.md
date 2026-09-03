@@ -10,14 +10,19 @@ AgentReady scans a Framer project, suggests useful agent capabilities, and insta
 
 Browser agents normally have to infer intent from pixels and DOM structure. WebMCP lets a website expose explicit, typed tools through `document.modelContext.registerTool()`. AgentReady makes that workflow accessible to Framer designers.
 
-The current MVP can publish these tools:
+The complete configured runtime can publish 25 focused tools:
 
 - `search_site` — search visible headings, text, and links
 - `search_collection` — search serialized Framer CMS content
 - `get_collection_item` — retrieve a CMS item by slug
 - `navigate_to` — navigate within the origin or reveal a section
-- `prefill_form` — prepare form values without submitting
-- `submit_form` — optional side-effecting form submission
+- advanced forms — inspect and prepare text, address, options, dates, multi-step flows, and secure file-picker handoff
+- conversation — read chatbot replies, compose a turn, and optionally send/wait
+- safe checkout — prepare non-sensitive order details while keeping credentials and final confirmation human-only
+- Shopify Storefront — search products, manage cart state, and hand off to Shopify Checkout
+- Cloudflare Agentic Payments — discover paid offers and expose MPP HTTP 402 challenges and receipts
+- Cloudflare Pay Per Crawl — publish price, permitted purposes, evidence guidance, and a paid structured JSON representation of Framer content
+- `submit_form` — optional side-effecting submission for non-payment, non-authentication forms
 
 ## Product flow
 
@@ -25,7 +30,15 @@ The current MVP can publish these tools:
 Scan project → Review capabilities → Publish tools → Test with an agent
 ```
 
-The plugin reads the current canvas and CMS collections, generates a compact runtime configuration, and installs a top-level `<script>` using `framer.setCustomCode()`. No separate MCP server is required.
+The plugin reads the current canvas and CMS collections, generates a compact runtime configuration, and installs a top-level `<script>` using `framer.setCustomCode()`. No separate MCP server is required for the core runtime; Shopify and Cloudflare are optional integrations.
+
+The WebMCP runtime follows Chrome's imperative API guidance: capability-scoped tools, strict runtime validation, read-only and untrusted-content annotations, abortable registration, visible UI state changes, and human review for sensitive actions. Standard declarative form annotations remain useful for simple native forms, while AgentReady uses imperative tools for Framer's custom controls, multi-step state, chat, commerce, and security boundaries.
+
+## Plugin distribution
+
+The public Framer Marketplace package is produced with `npm run pack`. Enterprise teams can alternatively self-host the static `dist` output as a Workspace Plugin on Vercel or Cloudflare Pages; `framer.json` must remain at the deployment root. This plugin UI hosting is separate from the optional Cloudflare Workers used for payments, uploads, and paid crawl delivery.
+
+See [the capability matrix](docs/capability-matrix.md) for the full 25-tool inventory and safety boundaries, and [the WebMCP design notes](docs/webmcp-design.md) for the Chrome API decisions.
 
 ## Development
 
@@ -57,7 +70,7 @@ npm run pack
 AGENTREADY_DEMO_URL=https://make-aspects-824660.framer.app/agent-ready npm run test:live
 ```
 
-The live test fetches the actual Framer HTML, executes the installed Custom Code with a WebMCP-compatible model context, checks all five default tools, searches rendered content, and prefills the real form fields.
+The live test fetches the actual Framer HTML and executes installed Custom Code with a WebMCP-compatible model context. The isolated suite covers all 25 optional tools.
 
 ## Testing WebMCP
 
@@ -77,6 +90,9 @@ The ChatGPT built-in browser currently discovers imperative tools registered by 
 - Navigation is restricted to the current origin.
 - CMS drafts are excluded from tool results.
 - Generated inputs use narrow JSON Schemas and reject extra properties.
+- Payment and authentication secrets are never read, returned, or filled.
+- Shopify cart IDs stay in browser session storage and are summarized without their secret key.
+- Cloudflare payment private keys stay in the paying Agent/Worker, never in Framer Custom Code.
 
 ## Current limitations
 
@@ -84,12 +100,15 @@ The ChatGPT built-in browser currently discovers imperative tools registered by 
 - Form detection is heuristic and runtime form fields must expose a `name`, `id`, or `aria-label`.
 - Site scanning currently covers the active canvas plus project CMS collections.
 - WebMCP remains experimental and browser support varies.
+- A WebMCP host must be MPP/x402-aware to fulfill an agentic payment automatically; other hosts can still inspect the challenge and use a human payment handoff.
 
 ## Demo status
 
 The Challenge demo is built in Framer through its Server API, includes desktop/tablet/mobile breakpoints, and has the AgentReady runtime installed in Framer Custom Code. The public preview and its registered tool behavior are covered by `npm run test:live`.
 
 See [docs/submission.md](docs/submission.md) for the submission copy, demo prompts, and video outline.
+
+The optional [Cloudflare Worker](cloudflare/README.md) adds Durable Object session state, Turnstile verification, R2 upload handoff, and an MPP-protected offer endpoint.
 
 ## License
 

@@ -1,0 +1,12 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "agentready-crawl-pricing",
+  "main": "src/crawl-pricing.ts",
+  "compatibility_date": "2026-09-03",
+  "vars": {
+    "CRAWLER_PRICE": "USD 0.01",
+    "PAID_PATH_PREFIXES": "/articles/,/research/,/agentready/content.json",
+    "FRAMER_ORIGIN": "https://make-aspects-824660.framer.app"
+  },
+  "observability": { "enabled": true }
+}

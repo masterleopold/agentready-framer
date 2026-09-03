@@ -4,17 +4,23 @@ import { buildWebMcpCustomCode } from "./runtime"
 import type { CapabilityId, CmsCollectionSnapshot, RuntimeConfig, SiteScan } from "./types"
 import "./App.css"
 
-framer.showUI({ position: "top right", width: 390, height: 620 })
+framer.showUI({ position: "top right", width: 390, height: 760 })
 
 const CAPABILITIES: Array<{ id: CapabilityId; title: string; description: string; risk?: string }> = [
   { id: "siteSearch", title: "Search website", description: "Find matching text, sections, and links on the current page." },
   { id: "cmsSearch", title: "Read CMS content", description: "Search collections and retrieve items by slug." },
   { id: "navigation", title: "Navigate pages", description: "Open same-site pages and reveal matching sections." },
-  { id: "formFill", title: "Fill forms", description: "Prepare visible form values for the visitor to review." },
-  { id: "formSubmit", title: "Submit forms", description: "Allow agents to perform the final form submission.", risk: "Review carefully" },
+  { id: "formFill", title: "Advanced forms", description: "Handle steps, options, dates, and file handoff without submitting." },
+  { id: "conversation", title: "Read & compose chat", description: "Read chatbot replies and prepare the next conversational turn." },
+  { id: "chatSend", title: "Send chat messages", description: "Allow agents to send prepared messages and wait for a reply.", risk: "External action" },
+  { id: "checkoutAssist", title: "Checkout assistant", description: "Prepare plans, billing, shipping, and coupons; secrets stay human-only." },
+  { id: "shopifyCommerce", title: "Shopify commerce", description: "Search products, manage a Storefront cart, and hand off to Shopify Checkout." },
+  { id: "agenticPayments", title: "Cloudflare payments", description: "Expose MPP payment challenges and receipts for agent-native paid offers." },
+  { id: "payPerCrawl", title: "Pay Per Crawl", description: "Publish crawler pricing and content-use policy for a Cloudflare-protected domain." },
+  { id: "formSubmit", title: "Submit non-payment forms", description: "Allow final submission except checkout, authentication, and sensitive forms.", risk: "Review carefully" },
 ]
 
-const DEFAULT_CAPABILITIES: CapabilityId[] = ["siteSearch", "cmsSearch", "navigation", "formFill"]
+const DEFAULT_CAPABILITIES: CapabilityId[] = ["siteSearch", "cmsSearch", "navigation", "formFill", "conversation", "checkoutAssist"]
 
 function primitiveValue(value: unknown): unknown {
   if (value === null || typeof value === "string" || typeof value === "number" || typeof value === "boolean") return value
@@ -57,6 +63,11 @@ export function App() {
   const [disabledByUser, setDisabledByUser] = useState(false)
   const [publishedUrl, setPublishedUrl] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [shopifyDomain, setShopifyDomain] = useState("")
+  const [shopifyToken, setShopifyToken] = useState("")
+  const [paymentEndpoint, setPaymentEndpoint] = useState("")
+  const [crawlPrice, setCrawlPrice] = useState("0.01")
+  const [allowAiTraining, setAllowAiTraining] = useState(false)
 
   const refreshInstallStatus = useCallback(async () => {
     const [customCode, publishInfo] = await Promise.all([
@@ -91,8 +102,29 @@ export function App() {
 
   useEffect(() => { void Promise.all([runScan(), refreshInstallStatus()]) }, [refreshInstallStatus, runScan])
 
-  const effectiveEnabled = useMemo(() => enabled.filter((id) => id !== "cmsSearch" || Boolean(scan?.collections.length)), [enabled, scan])
-  const toolCount = effectiveEnabled.length + (effectiveEnabled.includes("cmsSearch") ? 1 : 0)
+  const validShopifyDomain = /^[a-z0-9][a-z0-9-]*\.myshopify\.com$/i.test(shopifyDomain.trim().replace(/^https?:\/\//, "").replace(/\/$/, ""))
+  const validPaymentEndpoint = /^https:\/\/[a-z0-9.-]+(?::\d+)?(?:\/.*)?$/i.test(paymentEndpoint.trim())
+  const validCrawlPrice = /^\d+(?:\.\d{1,6})?$/.test(crawlPrice) && Number(crawlPrice) > 0
+  const effectiveEnabled = useMemo(() => enabled.filter((id) => {
+    if (id === "cmsSearch") return Boolean(scan?.collections.length)
+    if (id === "shopifyCommerce") return validShopifyDomain
+    if (id === "agenticPayments") return validPaymentEndpoint
+    if (id === "payPerCrawl") return validCrawlPrice
+    return true
+  }), [enabled, scan, validCrawlPrice, validPaymentEndpoint, validShopifyDomain])
+  const toolCount = effectiveEnabled.reduce((count, id) => count + ({
+    siteSearch: 1,
+    cmsSearch: 2,
+    navigation: 1,
+    formFill: 7,
+    conversation: 2,
+    chatSend: 1,
+    checkoutAssist: 2,
+    shopifyCommerce: 5,
+    agenticPayments: 2,
+    payPerCrawl: 1,
+    formSubmit: 1,
+  }[id] ?? 0), 0)
 
   const toggleCapability = (id: CapabilityId) => {
     setEnabled((current) => current.includes(id) ? current.filter((capability) => capability !== id) : [...current, id])
@@ -103,7 +135,17 @@ export function App() {
     setStatus("publishing")
     setError(null)
     try {
-      const config: RuntimeConfig = { version: 1, projectName: scan.projectName, generatedAt: new Date().toISOString(), capabilities: effectiveEnabled, collections: scan.collections }
+      const storeDomain = shopifyDomain.trim().replace(/^https?:\/\//, "").replace(/\/$/, "")
+      const config: RuntimeConfig = {
+        version: 1,
+        projectName: scan.projectName,
+        generatedAt: new Date().toISOString(),
+        capabilities: effectiveEnabled,
+        collections: scan.collections,
+        shopify: validShopifyDomain ? { storeDomain, publicAccessToken: shopifyToken.trim() || undefined, apiVersion: "2026-07" } : undefined,
+        cloudflarePayments: validPaymentEndpoint ? { endpoint: paymentEndpoint.trim().replace(/\/$/, "") } : undefined,
+        crawlMonetization: validCrawlPrice ? { currency: "USD", pricePerRequest: crawlPrice, purposes: { search: true, aiInput: true, aiTrain: allowAiTraining }, contentUse: allowAiTraining ? "full" : "reference" } : undefined,
+      }
       await framer.setCustomCode({ html: buildWebMcpCustomCode(config), location: "bodyEnd" })
       await refreshInstallStatus()
       framer.notify(`Published ${toolCount} WebMCP tools`, { variant: "success" })
@@ -164,6 +206,23 @@ export function App() {
             </label>
           })}
         </div>
+        {enabled.includes("shopifyCommerce") && <div className="integration-settings">
+          <div className="section-label">SHOPIFY STOREFRONT</div>
+          <input value={shopifyDomain} onChange={(event) => setShopifyDomain(event.target.value)} placeholder="store.myshopify.com" aria-label="Shopify store domain" />
+          <input value={shopifyToken} onChange={(event) => setShopifyToken(event.target.value)} placeholder="Public access token (optional)" aria-label="Shopify public Storefront token" />
+          <p>{validShopifyDomain ? "Ready · private Admin tokens are never accepted." : "Enter a .myshopify.com domain to enable 5 commerce tools."}</p>
+        </div>}
+        {enabled.includes("agenticPayments") && <div className="integration-settings">
+          <div className="section-label">CLOUDFLARE AGENTIC PAYMENTS</div>
+          <input value={paymentEndpoint} onChange={(event) => setPaymentEndpoint(event.target.value)} placeholder="https://your-worker.workers.dev" aria-label="Cloudflare Agentic Payments endpoint" />
+          <p>{validPaymentEndpoint ? "Ready · MPP/x402 credentials stay with the paying agent." : "Enter the HTTPS URL of the AgentReady payments Worker."}</p>
+        </div>}
+        {enabled.includes("payPerCrawl") && <div className="integration-settings">
+          <div className="section-label">CLOUDFLARE PAY PER CRAWL</div>
+          <input value={crawlPrice} onChange={(event) => setCrawlPrice(event.target.value)} inputMode="decimal" placeholder="USD per successful crawl" aria-label="USD price per successful crawl" />
+          <label className="compact-check"><input type="checkbox" checked={allowAiTraining} onChange={(event) => setAllowAiTraining(event.target.checked)} />Allow paid AI training use</label>
+          <p>Requires a Cloudflare-proxied custom domain and Pay Per Crawl beta access.</p>
+        </div>}
       </section>
 
       {disabledByUser && <div className="notice warning">Custom Code is disabled in Site Settings. Enable it before testing.</div>}

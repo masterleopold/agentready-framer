@@ -6,7 +6,7 @@ AgentReady for Framer
 
 ## Tagline
 
-Make your Framer site agent-ready in five minutes.
+Turn any Framer site into a safe action surface for agents.
 
 ## Live demo
 
@@ -20,11 +20,11 @@ https://github.com/masterleopold/agentready-framer
 
 AgentReady is a no-code WebMCP Builder for Framer. It scans the site designers have already built — pages, links, CMS collections, and forms — and turns those existing structures into explicit, typed tools for AI agents.
 
-Instead of asking every Framer creator to learn JavaScript, JSON Schema, and browser security details, AgentReady presents safe capabilities as switches. In the current MVP, creators can expose site search, CMS search and item lookup, same-origin navigation, and form prefilling. Form submission remains a separate capability and is disabled by default.
+Instead of asking every Framer creator to learn JavaScript, JSON Schema, and browser security details, AgentReady presents safe capabilities as switches. The complete runtime covers 25 tools across page and CMS discovery, advanced and multi-step forms, accessible option/date controls, address entry, human-mediated file upload, conversational chat, safe checkout preparation, Shopify Storefront commerce, Cloudflare Agentic Payments, and Pay Per Crawl policy discovery.
 
 When the creator selects Install tools, AgentReady generates an imperative WebMCP runtime and places it in Framer Custom Code. It runs as top-level page JavaScript, requires no separate backend, excludes draft CMS entries, and travels with the normal Framer publishing workflow.
 
-The live demo is itself a responsive Framer site created and edited through a Framer MCP server. Its AgentReady runtime exposes five default tools. The repository includes both isolated runtime tests and an end-to-end test that fetches the public Framer page, executes its installed Custom Code in a WebMCP-compatible model context, searches real page content, and prefills the real form fields.
+The live demo is itself a responsive Framer site created and edited through a Framer MCP server. The repository includes isolated tests for all 25 tools and an end-to-end test for the published Custom Code. Payment boundaries are explicit: AgentReady can assemble a Shopify cart and prepare checkout, while Shopify owns retail payment authentication; Cloudflare Workers demonstrate agent-native HTTP 402 payment challenges and paid-crawl pricing for a provenance-rich JSON representation of Framer content.
 
 AgentReady's larger vision is an Agent API Builder for Websites: a visual layer where site owners can design, test, publish, monitor, and improve the actions their websites offer to agents. Framer is the first distribution surface because its structured canvas and CMS make those actions understandable to creators without code.
 
@@ -34,6 +34,11 @@ AgentReady's larger vision is an Agent API Builder for Websites: a visual layer 
 - “Search this page for agent capability.”
 - “Find CMS content about design.”
 - “Fill the demo form with name Demo Agent, email agent@example.com, and interest WebMCP. Do not submit it.”
+- “Fill the shipping address, choose the Pro plan, select Design and AI, and set a meeting for September 10 at 14:30. Stop before submission.”
+- “Read the support chatbot’s last reply and ask a follow-up question.”
+- “Search Shopify for Agent Kit, add one available variant, summarize the cart, and prepare checkout. Let me confirm payment.”
+- “List the Cloudflare agentic offers and request the testnet payment challenge. Ask before spending.”
+- “Explain this site's paid-crawl price, permitted AI uses, and what evidence a crawler should retain.”
 - “Navigate to the section about the live action target.”
 
 ## Video outline (under 3 minutes)
@@ -44,7 +49,7 @@ Show a polished Framer site and explain that browser agents still have to infer 
 
 ### 0:20–0:55 — Builder
 
-Open AgentReady in Framer. Show the automatic site scan, detected text/links/CMS/forms, capability switches, and the deliberately separate form-submit control.
+Open AgentReady in Framer. Show the automatic scan, capability switches, Shopify and Cloudflare configuration, and the deliberately separate high-risk controls.
 
 ### 0:55–1:15 — Install
 
@@ -52,11 +57,11 @@ Select Install tools. Show the three readiness checks: Runtime, Enabled, and Liv
 
 ### 1:15–2:20 — Agent demo
 
-Open the public demo in a WebMCP-capable ChatGPT browser. Ask it to list tools, search page content, query CMS, and prefill the visible form. Emphasize that values are prepared for human review and are not submitted.
+Open the public demo in a WebMCP-capable ChatGPT browser. Prepare a multi-step form, continue the chatbot after reading its reply, assemble a Shopify cart, and surface a Cloudflare MPP payment challenge. Emphasize the visible handoff before irreversible actions.
 
 ### 2:20–2:45 — Technical proof
 
-Briefly show the open-source runtime, narrow input schemas, same-origin navigation guard, draft exclusion, and passing live test.
+Briefly show the open-source runtime, narrow schemas, payment-secret guard, Shopify cart redaction, Cloudflare Workers, and passing 25-tool test.
 
 ### 2:45–2:58 — Vision
 
@@ -65,6 +70,6 @@ Close with: “AgentReady turns every Framer creator into an agent API designer 
 ## Judging points
 
 - WebMCP leverage: real imperative tools registered by top-level page JavaScript.
-- Execution: a working Framer plugin, deployed demo, five live tools, runtime tests, live E2E test, and CI.
+- Execution: a working Framer plugin, deployed demo, 25 optional tools, runtime tests, live E2E test, Cloudflare Workers, and CI.
 - Impact: makes WebMCP accessible to a large no-code creator audience.
 - Creativity: treats agent capabilities as a visual website-design primitive rather than a developer-only integration.

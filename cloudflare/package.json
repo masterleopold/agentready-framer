@@ -1,0 +1,24 @@
+{
+  "name": "agentready-edge",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "dev:payments": "wrangler dev --config wrangler.payments.jsonc",
+    "dev:crawl": "wrangler dev --config wrangler.crawl.jsonc",
+    "deploy": "wrangler deploy",
+    "deploy:payments": "wrangler deploy --config wrangler.payments.jsonc",
+    "deploy:crawl": "wrangler deploy --config wrangler.crawl.jsonc",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260903.1",
+    "agents": "^0.22.0",
+    "hono": "^4.13.5",
+    "mppx": "^0.9.2",
+    "typescript": "^5.9.2",
+    "viem": "^2.37.0",
+    "wrangler": "^4.34.0"
+  }
+}
