@@ -57,6 +57,7 @@ async function scanCollections(): Promise<CmsCollectionSnapshot[]> {
 export function App() {
   const canPublish = useIsAllowedTo("setCustomCode")
   const canDeploy = useIsAllowedTo("publish")
+  const canSaveSettings = useIsAllowedTo("setPluginData")
   const [scan, setScan] = useState<SiteScan | null>(null)
   const [enabled, setEnabled] = useState<CapabilityId[]>(DEFAULT_CAPABILITIES)
   const [status, setStatus] = useState<"idle" | "scanning" | "publishing" | "deploying">("idle")
@@ -129,12 +130,12 @@ export function App() {
   }, [])
 
   useEffect(() => {
-    if (!settingsLoaded) return
+    if (!settingsLoaded || !canSaveSettings) return
     const timeout = window.setTimeout(() => {
       void framer.setPluginData(SETTINGS_KEY, JSON.stringify({ enabled, shopifyDomain, shopifyToken, paymentEndpoint, crawlPrice, allowAiTraining }))
     }, 250)
     return () => window.clearTimeout(timeout)
-  }, [allowAiTraining, crawlPrice, enabled, paymentEndpoint, settingsLoaded, shopifyDomain, shopifyToken])
+  }, [allowAiTraining, canSaveSettings, crawlPrice, enabled, paymentEndpoint, settingsLoaded, shopifyDomain, shopifyToken])
 
   const validShopifyDomain = /^[a-z0-9][a-z0-9-]*\.myshopify\.com$/i.test(shopifyDomain.trim().replace(/^https?:\/\//, "").replace(/\/$/, ""))
   const validPaymentEndpoint = /^https:\/\/[a-z0-9.-]+(?::\d+)?(?:\/.*)?$/i.test(paymentEndpoint.trim())
