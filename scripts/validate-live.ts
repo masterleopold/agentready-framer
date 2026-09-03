@@ -3,6 +3,8 @@ import { JSDOM, VirtualConsole } from "jsdom"
 
 type RegisteredTool = {
   name: string
+  title: string
+  annotations?: Record<string, boolean>
   execute: (input: Record<string, unknown>) => Promise<Record<string, unknown>>
 }
 
@@ -34,6 +36,7 @@ const dom = new JSDOM(html, {
       value: {
         registerTool(tool: RegisteredTool) {
           tools.push(tool)
+          return Promise.resolve()
         },
       },
     })
@@ -46,11 +49,16 @@ const dom = new JSDOM(html, {
 })
 
 await new Promise((resolve) => setTimeout(resolve, 100))
+const registration = (dom.window as unknown as { __agentReadyRegistration?: Promise<{ ready: boolean }> }).__agentReadyRegistration
+if (registration) assert.equal((await registration).ready, true)
 
 const names = tools.map((tool) => tool.name).sort()
+assert.ok(tools.every((tool) => tool.title?.length > 0), "Every live tool must expose a title.")
+assert.ok(tools.every((tool) => Object.keys(tool.annotations ?? {}).every((key) => ["readOnlyHint", "untrustedContentHint"].includes(key))), "Live tools must use only standard WebMCP annotations.")
 assert.deepEqual(names, [
   "advance_form_step",
   "compose_chat_message",
+  "discover_paid_content",
   "fill_address",
   "get_collection_item",
   "inspect_checkout",

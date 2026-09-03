@@ -29,6 +29,14 @@ export function buildWebMcpCustomCode(config: RuntimeConfig) {
     "inspect_agentic_offers", "request_agentic_payment", "discover_paid_content",
     "search_shopify_catalog", "lookup_shopify_catalog", "get_shopify_product", "search_shopify_policies"
   ]);
+  const registrations = [];
+  const toolNamePattern = /^[A-Za-z0-9_.-]{1,128}$/;
+  const toolTitle = (name) => name.split(/[_.-]+/).filter(Boolean).map((word) => {
+    const upper = word.toUpperCase();
+    if (["AI", "CMS", "URL", "MCP", "JSON"].includes(upper)) return upper;
+    if (word.toLowerCase() === "shopify") return "Shopify";
+    return word.charAt(0).toUpperCase() + word.slice(1);
+  }).join(" ");
   const intelligenceEndpoint = config.cloudflareIntelligence?.endpoint?.replace(new RegExp("/$"), "");
   const telemetryEnabled = Boolean(intelligenceEndpoint && config.cloudflareIntelligence?.telemetry);
   const telemetrySession = (() => {
@@ -47,17 +55,33 @@ export function buildWebMcpCustomCode(config: RuntimeConfig) {
   };
   const register = (tool) => {
     if (delivery.mode === "cloudflare" || (delivery.mode === "hybrid" && remoteTools.has(tool.name))) return;
+    if (!toolNamePattern.test(tool.name)) {
+      console.error("[AgentReady] Refused invalid WebMCP tool name", tool.name);
+      return;
+    }
     const execute = tool.execute;
-    modelContext.registerTool({ ...tool, execute: async (input, context) => {
+    const annotations = tool.annotations ? {
+      readOnlyHint: tool.annotations.readOnlyHint === true,
+      untrustedContentHint: tool.annotations.untrustedContentHint === true,
+    } : undefined;
+    const definition = { ...tool, title: tool.title || toolTitle(tool.name), ...(annotations ? { annotations } : {}) };
+    let registration;
+    try { registration = modelContext.registerTool({ ...definition, execute: async (input, context) => {
       const started = Date.now();
       try { const result = await execute(input, context); recordToolEvent(tool.name, "success", Date.now() - started); return result; }
       catch (error) { recordToolEvent(tool.name, "error", Date.now() - started); throw error; }
-    } }, { signal: controller.signal });
+    } }, { signal: controller.signal }); }
+    catch (error) { registration = Promise.reject(error); }
+    registrations.push(Promise.resolve(registration).then(
+      () => ({ name: tool.name, registered: true }),
+      (error) => { console.error("[AgentReady] WebMCP registration failed", tool.name, error); return { name: tool.name, registered: false, error: String(error?.message || error) }; },
+    ));
   };
   const text = (value) => String(value ?? "").trim();
   const normalize = (value) => text(value).replace(/\\s+/g, " ").toLocaleLowerCase();
   const sleep = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
   const emit = (element, eventName) => element.dispatchEvent(new Event(eventName, { bubbles: true }));
+  const refusal = (code, reason, details = {}) => ({ outcome: "refused", code, reason, retryable: false, requiresUserAction: true, ...details });
   const isVisible = (element) => {
     if (!(element instanceof Element)) return false;
     for (let current = element; current instanceof Element; current = current.parentElement) {
@@ -72,13 +96,14 @@ export function buildWebMcpCustomCode(config: RuntimeConfig) {
     return true;
   };
   const fieldKey = (field) => text(field.name || field.id || field.getAttribute("aria-label") || field.getAttribute("placeholder") || field.getAttribute("data-framer-name"));
+  const referencedText = (ids) => text((ids || "").split(/\\s+/).filter(Boolean).map((id) => document.getElementById(id)?.textContent || "").join(" ")).replace(/\\s+/g, " ");
   const fieldLabel = (field) => {
-    const labelledBy = field.getAttribute("aria-labelledby");
-    const labelled = labelledBy && document.getElementById(labelledBy);
+    const labelled = referencedText(field.getAttribute("aria-labelledby"));
     const explicit = field.id && document.querySelector('label[for="' + CSS.escape(field.id) + '"]');
     const wrapping = field.closest("label");
-    return text(labelled?.textContent || explicit?.textContent || wrapping?.textContent || field.getAttribute("aria-label") || field.getAttribute("placeholder") || fieldKey(field)).replace(/\\s+/g, " ").slice(0, 160);
+    return text(labelled || field.getAttribute("aria-label") || explicit?.textContent || wrapping?.textContent || field.getAttribute("placeholder") || fieldKey(field)).replace(/\\s+/g, " ").slice(0, 160);
   };
+  const fieldDescription = (field) => (referencedText(field.getAttribute("aria-describedby")) || text(field.getAttribute("aria-description") || field.getAttribute("toolparamdescription"))).slice(0, 500) || undefined;
   const sensitivePattern = /(?:^|[\\s_.-])(password|passcode|pin|otp|one[- ]?time|verification|security[- ]?code|cvv|cvc|card|pan|iban|swift|routing|bank[- ]?account|account[- ]?number|ssn|social[- ]?security)(?:$|[\\s_.-])/i;
   const paymentPattern = /checkout|payment|billing|credit|debit|card|pay now|place order|complete purchase|apple pay|google pay/i;
   const finalActionPattern = /submit|send|pay|purchase|place order|complete|confirm order|book now|register now|sign up/i;
@@ -123,7 +148,7 @@ export function buildWebMcpCustomCode(config: RuntimeConfig) {
     const sensitive = isSensitiveField(field);
     const kind = field instanceof HTMLInputElement ? field.type : field instanceof HTMLSelectElement ? (field.multiple ? "multi-select" : "select") : field instanceof HTMLTextAreaElement ? "textarea" : field.getAttribute("role") || (field.isContentEditable ? "contenteditable" : field.tagName.toLocaleLowerCase());
     return {
-      index, key: fieldKey(field) || "field_" + index, label: fieldLabel(field), kind,
+      index, key: fieldKey(field) || "field_" + index, label: fieldLabel(field), description: fieldDescription(field), kind,
       required: field.required === true || field.getAttribute("aria-required") === "true",
       disabled: field.disabled === true || field.getAttribute("aria-disabled") === "true",
       readOnly: field.readOnly === true || field.getAttribute("aria-readonly") === "true",
@@ -136,17 +161,58 @@ export function buildWebMcpCustomCode(config: RuntimeConfig) {
       value: sensitive || kind === "file" ? undefined : (field.type === "checkbox" || field.type === "radio" ? Boolean(field.checked) : text(field.value || field.textContent)).toString().slice(0, 300)
     };
   };
+  const formValidation = (form) => {
+    const fields = formFields(form).map(describeField).filter((field) => !field.sensitive);
+    const invalid = fields.filter((field) => field.validation?.valid === false).map((field) => ({ key: field.key, label: field.label, message: field.validation?.message || "Invalid value" }));
+    return { valid: invalid.length === 0, pending: Boolean(form.querySelector('[aria-busy="true"],[data-validating="true"]')), invalid };
+  };
   const describeForm = (form, formIndex) => {
     const fields = formFields(form).map(describeField);
     const buttons = [...form.querySelectorAll('button,input[type="button"],input[type="submit"],[role="button"]')].filter(isVisible).map((button) => ({ label: text(button.textContent || button.value || button.getAttribute("aria-label")), type: button.type || button.getAttribute("role") || "button", disabled: button.disabled === true || button.getAttribute("aria-disabled") === "true" })).filter((button) => button.label);
     const localRegion = form.closest("section,article,dialog,[role=dialog]");
     const context = text((localRegion || form).textContent).replace(/\\s+/g, " ").slice(0, 1000);
     const payment = paymentPattern.test([form.id, form.getAttribute("name"), form.getAttribute("aria-label"), form.getAttribute("data-framer-name"), context].filter(Boolean).join(" ")) || fields.some((field) => field.sensitive && /card|cvv|cvc|billing|payment/i.test(field.label + " " + field.key));
-    return { formIndex, name: text(form.getAttribute("name") || form.id || form.getAttribute("aria-label") || form.getAttribute("data-framer-name")) || "Form " + (formIndex + 1), action: form instanceof HTMLFormElement ? form.action : undefined, method: form instanceof HTMLFormElement ? form.method : undefined, payment, fields, buttons };
+    return { formIndex, name: text(form.getAttribute("name") || form.id || form.getAttribute("aria-label") || form.getAttribute("data-framer-name")) || "Form " + (formIndex + 1), action: form instanceof HTMLFormElement ? form.action : undefined, method: form instanceof HTMLFormElement ? form.method : undefined, payment, fields, buttons, validation: formValidation(form), usesCurrentVisibleValues: true };
   };
+  const humanOnlyForm = (form) => {
+    const descriptor = describeForm(form, forms().indexOf(form));
+    return descriptor.payment || descriptor.fields.some((field) => field.sensitive);
+  };
+  const markHumanOnlyControls = () => {
+    for (const form of forms()) {
+      if (!humanOnlyForm(form)) continue;
+      for (const control of form.querySelectorAll('button,input[type="submit"],[role="button"]')) {
+        const label = text(control.textContent || control.value || control.getAttribute("aria-label"));
+        if (control.type === "submit" || finalActionPattern.test(label) || paymentPattern.test(label)) {
+          control.setAttribute("data-agentready-human-only", "true");
+          control.setAttribute("data-agentready-human-only-reason", "sensitive-or-payment-confirmation");
+        }
+      }
+    }
+  };
+  const guardHumanOnlyActivation = (event) => {
+    if (event.isTrusted || !(event.target instanceof Element)) return;
+    const control = event.target.closest('[data-agentready-human-only="true"]');
+    if (!control) return;
+    event.preventDefault(); event.stopImmediatePropagation();
+    control.setAttribute("data-agentready-agent-blocked", "true");
+    console.warn("[AgentReady] Blocked synthetic activation of a human-only control.");
+  };
+  const guardHumanOnlySubmit = (event) => {
+    if (event.isTrusted || !(event.target instanceof HTMLFormElement) || !humanOnlyForm(event.target)) return;
+    event.preventDefault(); event.stopImmediatePropagation();
+    event.target.setAttribute("data-agentready-agent-blocked", "true");
+    console.warn("[AgentReady] Blocked synthetic submission of a sensitive form.");
+  };
+  markHumanOnlyControls();
+  document.addEventListener("click", guardHumanOnlyActivation, { capture: true, signal: controller.signal });
+  document.addEventListener("submit", guardHumanOnlySubmit, { capture: true, signal: controller.signal });
+  const humanOnlyObserver = new MutationObserver(markHumanOnlyControls);
+  humanOnlyObserver.observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ["hidden", "style", "aria-hidden", "aria-label", "disabled"] });
+  controller.signal.addEventListener("abort", () => humanOnlyObserver.disconnect(), { once: true });
   const setField = (form, key, value) => {
     const targets = findFields(form, key); if (!targets.length) return { key, status: "not_found" };
-    const safeTargets = targets.filter((field) => !isSensitiveField(field)); if (!safeTargets.length) return { key, status: "blocked_sensitive", requiresUserAction: true };
+    const safeTargets = targets.filter((field) => !isSensitiveField(field)); if (!safeTargets.length) return { key, status: "refused", ...refusal("sensitive_field", "Sensitive fields must be completed by the person.") };
     const target = safeTargets[0];
     if (target.disabled || target.readOnly || target.getAttribute("aria-disabled") === "true") return { key, status: "unavailable" };
     if (target instanceof HTMLInputElement && target.type === "file") return { key, status: "requires_file_picker", requiresUserAction: true };
@@ -210,7 +276,7 @@ export function buildWebMcpCustomCode(config: RuntimeConfig) {
   };
   const selectCustomOption = async (form, key, values) => {
     const target = findFields(form, key).find((field) => ["combobox", "listbox"].includes(field.getAttribute("role")));
-    if (!target) return { key, status: "not_found" }; if (isSensitiveField(target)) return { key, status: "blocked_sensitive", requiresUserAction: true };
+    if (!target) return { key, status: "not_found" }; if (isSensitiveField(target)) return { key, status: "refused", ...refusal("sensitive_field", "Sensitive fields must be completed by the person.") };
     target.click(); await sleep(50); const wanted = (Array.isArray(values) ? values : [values]).map(normalize); const options = [...document.querySelectorAll('[role="option"]')].filter(isVisible);
     const matches = options.filter((option) => wanted.some((entry) => entry === normalize(option.getAttribute("data-value")) || entry === normalize(option.textContent)));
     for (const option of matches) option.click();
@@ -354,11 +420,11 @@ export function buildWebMcpCustomCode(config: RuntimeConfig) {
 
   if (enabled.has("formFill") && hasForms) {
     register({ name: "inspect_forms", description: "Inspect visible forms, steps, field types, constraints, and choices. Sensitive values are never returned.", inputSchema: { type: "object", properties: { formIndex: { type: "integer", minimum: 0 } }, additionalProperties: false }, annotations: { readOnlyHint: true }, execute: async ({ formIndex } = {}) => { const available = forms(); const selected = Number.isInteger(formIndex) ? [available[formIndex]].filter(Boolean) : available; return { forms: selected.map((form) => ({ ...describeForm(form, available.indexOf(form)), step: currentStep(form) })), count: selected.length }; } });
-    register({ name: "prefill_form", description: "Fill safe text, number, checkbox, radio, select, multi-select, date, time, toggle, slider, and rich-text fields without submitting. Password, payment, OTP, and bank fields are blocked.", inputSchema: { type: "object", properties: { values: { type: "object", additionalProperties: { type: ["string", "number", "boolean", "array"], items: { type: "string" } } }, formIndex: { type: "integer", minimum: 0, default: 0 } }, required: ["values"], additionalProperties: false }, execute: async ({ values, formIndex = 0 }) => { const form = getForm(formIndex); if (!form) return { filled: false, reason: "Form not found", formIndex }; const results = fillValues(form, values); form.scrollIntoView({ behavior: "smooth", block: "center" }); return { filled: results.some((item) => item.status === "updated"), updated: results.filter((item) => item.status === "updated").map((item) => item.key), blocked: results.filter((item) => item.status !== "updated"), results, requiresUserReview: true, formIndex }; } });
+    register({ name: "prefill_form", description: "Fill safe text, number, checkbox, radio, select, multi-select, date, time, toggle, slider, and rich-text fields without submitting. Password, payment, OTP, and bank fields are blocked.", inputSchema: { type: "object", properties: { values: { type: "object", additionalProperties: { type: ["string", "number", "boolean", "array"], items: { type: "string" } } }, formIndex: { type: "integer", minimum: 0, default: 0 } }, required: ["values"], additionalProperties: false }, execute: async ({ values, formIndex = 0 }) => { const form = getForm(formIndex); if (!form) return { filled: false, reason: "Form not found", formIndex }; const results = fillValues(form, values); form.scrollIntoView({ behavior: "smooth", block: "center" }); return { filled: results.some((item) => item.status === "updated"), updated: results.filter((item) => item.status === "updated").map((item) => item.key), blocked: results.filter((item) => item.status !== "updated"), results, validation: formValidation(form), usesCurrentVisibleValues: true, requiresUserReview: true, formIndex }; } });
     register({ name: "fill_address", description: "Fill a structured shipping or billing address using semantic autocomplete fields, including recipient, organization, street lines, city, region, postal code, country, phone, and email.", inputSchema: { type: "object", properties: { address: { type: "object", properties: { recipient: { type: "string" }, organization: { type: "string" }, line1: { type: "string" }, line2: { type: "string" }, city: { type: "string" }, region: { type: "string" }, postalCode: { type: "string" }, country: { type: "string" }, countryCode: { type: "string" }, phone: { type: "string" }, email: { type: "string" } }, additionalProperties: false }, scope: { type: "string", enum: ["shipping", "billing"] }, formIndex: { type: "integer", minimum: 0, default: 0 } }, required: ["address"], additionalProperties: false }, execute: async ({ address, scope, formIndex = 0 }) => { const form = getForm(formIndex); if (!form) return { filled: false, reason: "Form not found" }; const results = fillAddress(form, address, scope); form.scrollIntoView({ behavior: "smooth", block: "center" }); return { filled: results.some((item) => item.status === "updated"), results, blocked: results.filter((item) => item.status !== "updated"), requiresUserReview: true }; } });
     register({ name: "select_form_options", description: "Select native or ARIA combobox, listbox, radio, checkbox, and multi-select options without submitting.", inputSchema: { type: "object", properties: { selections: { type: "object", additionalProperties: { type: ["string", "boolean", "array"], items: { type: "string" } } }, formIndex: { type: "integer", minimum: 0, default: 0 } }, required: ["selections"], additionalProperties: false }, execute: async ({ selections, formIndex = 0 }) => { const form = getForm(formIndex); if (!form) return { selected: false, reason: "Form not found", formIndex }; const results = []; for (const [key, value] of Object.entries(selections)) { const nativeResult = setField(form, key, value); results.push(nativeResult.status === "not_found" ? await selectCustomOption(form, key, value) : nativeResult); } return { selected: results.some((item) => item.status === "updated"), results, requiresUserReview: true }; } });
     register({ name: "set_form_date", description: "Set a native date, date range, datetime-local, month, week, or time field, or choose a matching accessible calendar date.", inputSchema: { type: "object", properties: { field: { type: "string" }, value: { type: "string" }, endField: { type: "string" }, endValue: { type: "string" }, displayLabel: { type: "string" }, timeZone: { type: "string" }, formIndex: { type: "integer", minimum: 0, default: 0 } }, required: ["field", "value"], additionalProperties: false }, execute: async ({ field, value, endField, endValue, displayLabel, timeZone, formIndex = 0 }) => { const form = getForm(formIndex); if (!form) return { updated: false, reason: "Form not found" }; const target = findFields(form, field).find((item) => !isSensitiveField(item)); if (!target) return { updated: false, reason: "Date field not found" }; if (target instanceof HTMLInputElement && ["date", "datetime-local", "month", "week", "time"].includes(target.type)) { nativeValueSetter(target, value); const rangeResult = endField && endValue ? setField(form, endField, endValue) : undefined; return { updated: true, field, value, endField, endValue, rangeResult, timeZone, requiresUserReview: true }; } target.click(); await sleep(50); const wanted = [value, displayLabel].filter(Boolean).map(normalize); const options = [...document.querySelectorAll('[role="gridcell"],[data-date],button[aria-label],button[title]')].filter(isVisible); const match = options.find((option) => wanted.some((entry) => [option.getAttribute("data-date"), option.getAttribute("data-value"), option.getAttribute("aria-label"), option.getAttribute("title"), option.textContent].some((candidate) => normalize(candidate) === entry))); if (!match) return { updated: false, reason: "Accessible calendar option not found", available: options.map((option) => text(option.getAttribute("aria-label") || option.getAttribute("data-date") || option.textContent)).filter(Boolean).slice(0, 62) }; match.click(); const rangeResult = endField && endValue ? setField(form, endField, endValue) : undefined; return { updated: true, field, value, endField, endValue, rangeResult, timeZone, requiresUserReview: true }; } });
-    register({ name: "advance_form_step", description: "Move a multi-step form forward or backward. Final submit and payment actions are refused.", inputSchema: { type: "object", properties: { action: { type: "string", enum: ["next", "back"] }, buttonLabel: { type: "string" }, formIndex: { type: "integer", minimum: 0, default: 0 } }, required: ["action"], additionalProperties: false }, execute: async ({ action, buttonLabel, formIndex = 0 }) => { const form = getForm(formIndex); if (!form) return { advanced: false, reason: "Form not found" }; const pattern = buttonLabel ? new RegExp(buttonLabel.replace(/[.*+?^$()|[\\]\\\\]/g, "\\$&"), "i") : action === "back" ? /back|previous|prev|戻る|前へ/i : /next|continue|proceed|次へ|続ける/i; const button = [...form.querySelectorAll('button,input[type="button"],input[type="submit"],[role="button"]')].filter(isVisible).find((candidate) => pattern.test(text(candidate.textContent || candidate.value || candidate.getAttribute("aria-label")))); if (!button) return { advanced: false, reason: "Step button not found", step: currentStep(form) }; const label = text(button.textContent || button.value || button.getAttribute("aria-label")); if (button.type === "submit" || finalActionPattern.test(label) || paymentPattern.test(label)) return { advanced: false, reason: "Final actions require a separate reviewed submission", blocked: label, requiresUserAction: true }; button.click(); await sleep(50); return { advanced: true, action, button: label, step: currentStep(form), requiresUserReview: true }; } });
+    register({ name: "advance_form_step", description: "Move a multi-step form forward or backward. Final submit and payment actions are refused.", inputSchema: { type: "object", properties: { action: { type: "string", enum: ["next", "back"] }, buttonLabel: { type: "string" }, formIndex: { type: "integer", minimum: 0, default: 0 } }, required: ["action"], additionalProperties: false }, execute: async ({ action, buttonLabel, formIndex = 0 }) => { const form = getForm(formIndex); if (!form) return { advanced: false, reason: "Form not found" }; const pattern = buttonLabel ? new RegExp(buttonLabel.replace(/[.*+?^$()|[\\]\\\\]/g, "\\$&"), "i") : action === "back" ? /back|previous|prev|戻る|前へ/i : /next|continue|proceed|次へ|続ける/i; const button = [...form.querySelectorAll('button,input[type="button"],input[type="submit"],[role="button"]')].filter(isVisible).find((candidate) => pattern.test(text(candidate.textContent || candidate.value || candidate.getAttribute("aria-label")))); if (!button) return { advanced: false, reason: "Step button not found", step: currentStep(form) }; const label = text(button.textContent || button.value || button.getAttribute("aria-label")); if (button.type === "submit" || finalActionPattern.test(label) || paymentPattern.test(label)) return { advanced: false, blocked: label, ...refusal("final_action_requires_review", "Final actions require a separate reviewed submission.") }; button.click(); await sleep(50); return { advanced: true, action, button: label, step: currentStep(form), validation: formValidation(form), requiresUserReview: true }; } });
     register({ name: "prepare_file_upload", description: "Locate and focus a file input, report its accepted formats and limits, and hand off the secure system file picker to the user.", inputSchema: { type: "object", properties: { field: { type: "string" }, formIndex: { type: "integer", minimum: 0, default: 0 } }, required: ["field"], additionalProperties: false }, execute: async ({ field, formIndex = 0 }) => { const form = getForm(formIndex); if (!form) return { prepared: false, reason: "Form not found" }; const input = findFields(form, field).find((candidate) => candidate instanceof HTMLInputElement && candidate.type === "file"); if (!input) return { prepared: false, reason: "File input not found" }; input.focus(); input.scrollIntoView({ behavior: "smooth", block: "center" }); return { prepared: true, field: fieldKey(input) || fieldLabel(input), accept: input.accept || undefined, multiple: input.multiple, requiresUserAction: true, instruction: "Choose the file in the browser's secure file picker, then ask the agent to inspect the form again." }; } });
   }
 
@@ -392,14 +458,19 @@ export function buildWebMcpCustomCode(config: RuntimeConfig) {
   if (enabled.has("payPerCrawl") && config.crawlMonetization) register({ name: "discover_paid_content", description: "Discover this site's paid structured JSON feed, crawl price, permitted uses, and audit evidence.", inputSchema: { type: "object", properties: {}, additionalProperties: false }, annotations: { readOnlyHint: true }, execute: async () => ({ provider: "Cloudflare Pay Per Crawl", betaRequired: true, discovery: new URL("/.well-known/agentready.json", location.origin).href, endpoint: new URL("/agentready/content.json", location.origin).href, format: "application/json", schema: new URL("/agentready/schema.json", location.origin).href, pricing: { amount: config.crawlMonetization.pricePerRequest, currency: config.crawlMonetization.currency, unit: "successful JSON response" }, permittedPurposes: Object.entries(config.crawlMonetization.purposes).filter(([, allowed]) => allowed).map(([purpose]) => purpose === "aiInput" ? "ai-input" : purpose === "aiTrain" ? "ai-train" : purpose), contentUse: config.crawlMonetization.contentUse, payment: { unpaidStatus: 402, intentHeaders: ["crawler-exact-price", "crawler-max-price"], chargedHeader: "crawler-charged", identity: "Web Bot Auth" }, evidence: ["request URL", "timestamp", "signed payment intent", "crawler-charged", "content-digest", "content license"], legalNote: "Audit evidence is not by itself a universal copyright license." }) });
 
   if (enabled.has("checkoutAssist") && hasForms) {
-    register({ name: "inspect_checkout", description: "Inspect checkout structure, safe billing and shipping fields, choices, and handoff requirements without exposing payment secrets.", inputSchema: { type: "object", properties: { formIndex: { type: "integer", minimum: 0 } }, additionalProperties: false }, annotations: { readOnlyHint: true }, execute: async ({ formIndex } = {}) => { const available = forms(); const checkoutForms = available.map((form, index) => describeForm(form, index)).filter((form) => form.payment || (Number.isInteger(formIndex) && form.formIndex === formIndex)); return { forms: checkoutForms, count: checkoutForms.length, policy: { agentMayPrepare: ["plan", "quantity", "contact", "billing address", "shipping address", "shipping method", "coupon"], humanOnly: ["card or bank credentials", "passwords and OTP", "wallet authentication", "final payment confirmation"] } }; } });
-    register({ name: "prepare_checkout", description: "Prepare non-sensitive checkout fields and choices. Card, bank, password, OTP, and final payment actions remain human-only.", inputSchema: { type: "object", properties: { values: { type: "object", additionalProperties: { type: ["string", "number", "boolean", "array"], items: { type: "string" } } }, formIndex: { type: "integer", minimum: 0, default: 0 } }, required: ["values"], additionalProperties: false }, execute: async ({ values, formIndex = 0 }) => { const form = getForm(formIndex); if (!form) return { prepared: false, reason: "Checkout form not found" }; const results = fillValues(form, values); form.scrollIntoView({ behavior: "smooth", block: "center" }); return { prepared: results.some((item) => item.status === "updated"), results, blocked: results.filter((item) => item.status !== "updated"), requiresUserReview: true, requiresHumanPayment: true }; } });
+    register({ name: "inspect_checkout", description: "Inspect checkout structure, safe billing and shipping fields, choices, and handoff requirements without exposing payment secrets.", inputSchema: { type: "object", properties: { formIndex: { type: "integer", minimum: 0 } }, additionalProperties: false }, annotations: { readOnlyHint: true }, execute: async ({ formIndex } = {}) => { const available = forms(); const checkoutForms = available.map((form, index) => describeForm(form, index)).filter((form) => form.payment || (Number.isInteger(formIndex) && form.formIndex === formIndex)); return { forms: checkoutForms, count: checkoutForms.length, policy: { agentMayPrepare: ["plan", "quantity", "contact", "billing address", "shipping address", "shipping method", "coupon"], humanOnly: ["card or bank credentials", "passwords and OTP", "wallet authentication", "final payment confirmation"], humanOnlyControls: [...document.querySelectorAll('[data-agentready-human-only="true"]')].map((control) => text(control.textContent || control.value || control.getAttribute("aria-label"))).filter(Boolean), doNotAutomateHumanOnlyControls: true } }; } });
+    register({ name: "prepare_checkout", description: "Prepare non-sensitive checkout fields and choices. Card, bank, password, OTP, and final payment actions remain human-only.", inputSchema: { type: "object", properties: { values: { type: "object", additionalProperties: { type: ["string", "number", "boolean", "array"], items: { type: "string" } } }, formIndex: { type: "integer", minimum: 0, default: 0 } }, required: ["values"], additionalProperties: false }, execute: async ({ values, formIndex = 0 }) => { const form = getForm(formIndex); if (!form) return { prepared: false, reason: "Checkout form not found" }; const results = fillValues(form, values); form.scrollIntoView({ behavior: "smooth", block: "center" }); return { prepared: results.some((item) => item.status === "updated"), results, blocked: results.filter((item) => item.status !== "updated"), validation: formValidation(form), usesCurrentVisibleValues: true, requiresUserReview: true, requiresHumanPayment: true }; } });
   }
 
-  if (enabled.has("formSubmit")) register({ name: "submit_form", description: "Submit a reviewed non-payment, non-authentication form. Checkout and sensitive forms are always refused.", inputSchema: { type: "object", properties: { formIndex: { type: "integer", minimum: 0, default: 0 } }, additionalProperties: false }, annotations: { destructiveHint: true, openWorldHint: true }, execute: async ({ formIndex = 0 }) => { const form = getForm(formIndex); if (!(form instanceof HTMLFormElement)) return { submitted: false, reason: "HTML form not found", formIndex }; const descriptor = describeForm(form, formIndex); if (descriptor.payment || descriptor.fields.some((field) => field.sensitive)) return { submitted: false, reason: "Payment, authentication, and sensitive forms require human submission", requiresUserAction: true, formIndex }; if (!form.reportValidity()) return { submitted: false, reason: "Form validation failed", formIndex }; form.requestSubmit(); return { submitted: true, formIndex }; } });
+  if (enabled.has("formSubmit")) register({ name: "submit_form", description: "Submit the form using its current visible values after review. Payment, authentication, and sensitive forms are always refused.", inputSchema: { type: "object", properties: { formIndex: { type: "integer", minimum: 0, default: 0 } }, additionalProperties: false }, annotations: { destructiveHint: true, openWorldHint: true }, execute: async ({ formIndex = 0 }) => { const form = getForm(formIndex); if (!(form instanceof HTMLFormElement)) return { submitted: false, reason: "HTML form not found", formIndex }; const descriptor = describeForm(form, formIndex); if (descriptor.payment || descriptor.fields.some((field) => field.sensitive)) return { submitted: false, formIndex, ...refusal("sensitive_form", "Payment, authentication, and sensitive forms require human submission.") }; const validation = formValidation(form); if (!form.reportValidity() || !validation.valid || validation.pending) return { submitted: false, formIndex, validation, ...refusal(validation.pending ? "validation_pending" : "validation_failed", validation.pending ? "Form validation is still in progress." : "Form validation failed.") }; form.requestSubmit(); return { outcome: "success", submitted: true, formIndex, usedCurrentVisibleValues: true }; } });
 
-  window.dispatchEvent(new CustomEvent("agentready:ready", { detail: { capabilities: config.capabilities, delivery, generatedAt: config.generatedAt } }));
-  console.info("[AgentReady] WebMCP delivery ready", delivery.mode, config.capabilities);
+  window.__agentReadyRegistration = Promise.all(registrations).then((results) => {
+    const failed = results.filter((result) => !result.registered);
+    const detail = { ready: failed.length === 0, registered: results.length - failed.length, failed, capabilities: config.capabilities, delivery, generatedAt: config.generatedAt };
+    window.dispatchEvent(new CustomEvent("agentready:ready", { detail }));
+    console.info("[AgentReady] WebMCP delivery ready", delivery.mode, detail);
+    return detail;
+  });
 })();
 </script>`
 }

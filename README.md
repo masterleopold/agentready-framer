@@ -54,11 +54,13 @@ Framer plugin
 
 Hybrid moves ten network-backed tools to the same-origin `/mcp` gateway, preserves the remaining browser-state tools locally, and adds `agentready_edge_status`. It de-duplicates names automatically. Cloudflare's optional external Content Credentials pack adds two more image-metadata tools; those tools are managed by Cloudflare and are not included in the AgentReady counts above.
 
-The runtime follows Chrome's imperative WebMCP guidance: narrow JSON Schemas, strict validation, abortable registration, capability annotations, visible UI state changes, untrusted-content labeling, and human review for sensitive or irreversible actions. Native declarative annotations remain useful for simple forms; AgentReady uses imperative tools for Framer custom controls, multi-step state, chat, commerce, and explicit safety boundaries.
+The runtime follows the current WebMCP specification source: valid bounded names, user-facing titles, narrow JSON Schemas, observed registration Promises, abortable registration and execution, the standardized `readOnlyHint` and `untrustedContentHint` annotations, visible UI state changes, and human review for sensitive or irreversible actions. The normative declarative section remains incomplete, so AgentReady uses imperative tools for Framer custom controls, multi-step state, chat, commerce, and explicit safety boundaries.
 
 ## Try the live demo
 
 Open [agentready.framer.website](https://agentready.framer.website) in a WebMCP-capable agent browser and try prompts such as:
+
+The direct `framer.website` URL cannot set the WebMCP response headers on the demo's current free Framer plan. For strict production conformance, proxy a custom domain through the included Cloudflare Worker (which adds `Origin-Agent-Cluster: ?1` and `Permissions-Policy: tools=(self)`) or configure equivalent Framer custom headers on a supported plan.
 
 - “Find the available form tools and prepare the application with my address, preferences, and appointment time.”
 - “Read the latest chatbot reply, compose a follow-up question, and wait for me before sending it.”
@@ -129,6 +131,7 @@ References: [Shopify Storefront MCP](https://shopify.dev/docs/apps/build/storefr
 - The MCP gateway rejects cross-site browser requests, JSON-RPC batches, non-JSON or oversized bodies, unknown tools, invalid Shopify domains, and unapproved origins.
 - Analytics never records prompts, chat text, form values, tool arguments, payment data, or response bodies.
 - Final purchase, hosted checkout confirmation, wallet authentication, CAPTCHA, biometrics, signatures, and local file selection stay with the person.
+- Sensitive confirmation controls are marked as human-only and block untrusted synthetic clicks/submissions. Trusted browser-level automation is still an open WebMCP platform issue, so this is an additional defense rather than a complete guarantee.
 
 ## Project structure
 
@@ -175,6 +178,7 @@ CI runs type checking, linting, the runtime and gateway tests, the demo componen
 
 - [Capability and safety matrix](docs/capability-matrix.md)
 - [WebMCP design notes](docs/webmcp-design.md)
+- [WebMCP specification, explainer, and open-issues audit](docs/webmcp-spec-audit.md)
 - [Request coverage and launch status](docs/request-coverage.md)
 - [Challenge checklist](docs/challenge-checklist.md)
 - [Submission copy, demo prompts, and video outline](docs/submission.md)

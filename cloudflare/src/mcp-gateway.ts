@@ -10,12 +10,18 @@ interface Env {
 
 type JsonRpcId = string | number | null
 type JsonRpcRequest = { jsonrpc?: unknown; id?: JsonRpcId; method?: unknown; params?: unknown }
-type Tool = { name: string; description: string; inputSchema: Record<string, unknown>; annotations?: Record<string, boolean> }
+type Tool = { name: string; title?: string; description: string; inputSchema: Record<string, unknown>; annotations?: Record<string, boolean> }
 
 const objectSchema = (properties: Record<string, unknown>, required: string[] = []): Record<string, unknown> => ({
   type: "object", properties, ...(required.length ? { required } : {}), additionalProperties: false,
 })
 const text = (maximum = 2_000) => ({ type: "string", minLength: 1, maxLength: maximum })
+const toolTitle = (name: string) => name.split(/[_.-]+/).filter(Boolean).map((word) => {
+  const upper = word.toUpperCase()
+  if (["AI", "CMS", "URL", "MCP", "JSON"].includes(upper)) return upper
+  if (word.toLowerCase() === "shopify") return "Shopify"
+  return word.charAt(0).toUpperCase() + word.slice(1)
+}).join(" ")
 
 const TOOLS: Tool[] = [
   { name: "agentready_edge_status", description: "Inspect the same-origin AgentReady Cloudflare WebMCP gateway and its configured integrations.", inputSchema: objectSchema({}), annotations: { readOnlyHint: true } },
@@ -76,7 +82,7 @@ function availableTools(env: Env) {
     if (["inspect_agentic_offers", "request_agentic_payment"].includes(tool.name)) return Boolean(cleanEndpoint(env.PAYMENTS_ENDPOINT))
     if (tool.name.startsWith("search_shopify") || tool.name.startsWith("lookup_shopify") || tool.name === "get_shopify_product") return Boolean(shopifyDomain(env))
     return true
-  })
+  }).map((tool) => ({ ...tool, title: tool.title || toolTitle(tool.name) }))
 }
 
 function shopifyDomain(env: Env) {

@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "typecheck": "tsc --noEmit",
-    "test": "tsx scripts/validate-runtime.ts && tsx scripts/validate-mcp-gateway.ts",
+    "test": "tsx scripts/validate-runtime.ts && tsx scripts/validate-mcp-gateway.ts && tsx scripts/validate-cloudflare-headers.ts",
     "test:live": "tsx scripts/validate-live.ts",
     "check:demo": "esbuild framer/AgentReadyPlayground.tsx --bundle --external:framer --external:react --outfile=/tmp/agentready-playground.js",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",

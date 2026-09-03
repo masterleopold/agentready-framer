@@ -14,8 +14,9 @@ const initializePayload = await initialized.json() as { result: { protocolVersio
 assert.equal(initializePayload.result.protocolVersion, "2025-06-18")
 
 const listed = await rpc({ jsonrpc: "2.0", id: 2, method: "tools/list", params: {} })
-const listPayload = await listed.json() as { result: { tools: Array<{ name: string }> } }
+const listPayload = await listed.json() as { result: { tools: Array<{ name: string; title?: string }> } }
 assert.deepEqual(listPayload.result.tools.map((tool) => tool.name), ["agentready_edge_status", "discover_paid_content"])
+assert.ok(listPayload.result.tools.every((tool) => tool.title?.length), "Gateway tools must expose user-facing titles")
 
 const called = await rpc({ jsonrpc: "2.0", id: 3, method: "tools/call", params: { name: "agentready_edge_status", arguments: {} } })
 const callPayload = await called.json() as { result: { structuredContent: { ready: boolean; sameOrigin: boolean } } }

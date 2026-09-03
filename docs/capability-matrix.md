@@ -19,6 +19,8 @@ AgentReady separates preparation, external actions, and irreversible actions. A 
 | Cloudflare intelligence | AI Search hybrid retrieval and cited answers, same-origin SHA-256 attestations, anonymous per-tool metrics, and Browser Run release verification | Cloudflare account management and admin verification remain server-side; prompts, form values, payment data, and chat text are not analytics fields |
 | Cloudflare WebMCP bridge | Edge-inject the WebMCP bridge and compose the same-origin Site MCP Server and Content Credentials packs | Hybrid keeps UI state local; the preview C2PA pack decodes metadata but does not cryptographically verify signatures |
 
+All registered tools receive a user-facing `title`. The browser-facing adapter emits only the current WebMCP `readOnlyHint` and `untrustedContentHint` annotations. AgentReady represents policy refusals with a provisional structured envelope and marks sensitive confirmation controls as human-only; both conventions are documented in [the WebMCP specification audit](webmcp-spec-audit.md) rather than presented as standardized API fields.
+
 ## Tool inventory
 
 The full configured runtime registers 30 tools:

@@ -28,6 +28,16 @@ function withCrawlerPrice(response: Response, request: Request, env: Env) {
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers })
 }
 
+function withWebMcpSecurityHeaders(response: Response) {
+  const headers = new Headers(response.headers)
+  const permissionsPolicy = headers.get("permissions-policy")
+  if (!permissionsPolicy || !/\btools\s*=/i.test(permissionsPolicy)) {
+    headers.set("permissions-policy", permissionsPolicy ? `${permissionsPolicy}, tools=(self)` : "tools=(self)")
+  }
+  headers.set("origin-agent-cluster", "?1")
+  return new Response(response.body, { status: response.status, statusText: response.statusText, headers })
+}
+
 function textCollector(push: (value: string) => void): HTMLRewriterElementContentHandlers {
   let value = ""
   return {
@@ -176,7 +186,7 @@ export default {
     }), { headers: { "content-type": "application/json; charset=utf-8", "cache-control": "public, max-age=300", "x-content-type-options": "nosniff" } })
     if (url.pathname === "/agentready/content.json") return structuredContent(request, env)
 
-    const response = await fetch(request)
+    const response = withWebMcpSecurityHeaders(await fetch(request))
     if (!isPaidPath(url.pathname, env) || !response.ok) return response
     return withCrawlerPrice(response, request, env)
   },

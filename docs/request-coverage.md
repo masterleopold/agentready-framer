@@ -52,10 +52,12 @@ This is the implementation audit against the product requirements for AgentReady
 
 - Imperative tools are registered from top-level page JavaScript with narrow JSON Schemas.
 - Tools are registered only when their capability and relevant UI/configuration are present.
-- Read-only, open-world, destructive, and untrusted-content annotations are applied by behavior.
+- Every tool has a user-facing title; only the currently standardized `readOnlyHint` and `untrustedContentHint` WebMCP annotations are forwarded. Review, refusal, and consequential-action policy stays in explicit tool contracts until the related proposals are standardized.
 - Generated runtime data is escaped against script termination and prototype-pollution-style arguments are rejected.
 - Hidden Framer breakpoint duplicates and inactive steps are excluded.
 - Async network and chat operations accept the WebMCP execution cancellation signal.
+- Registration Promises are observed and summarized; tool names are validated against the specification grammar.
+- Safe current form values and validation state are returned, while payment/sensitive confirmation controls are marked human-only and reject untrusted synthetic activation.
 - Sensitive values are never returned, filled, persisted, or placed in tool arguments.
 - Hybrid mode reserves gateway-backed names so the Cloudflare bridge and local runtime never register duplicate tools.
 - The gateway enforces same-origin browser access, bounded JSON-only JSON-RPC, configuration-filtered tools, and no public admin methods.

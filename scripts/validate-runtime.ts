@@ -44,6 +44,10 @@ new Function(source)
 
 interface RegisteredTool {
   name: string
+  title: string
+  description: string
+  inputSchema?: Record<string, unknown>
+  annotations?: Record<string, boolean>
   execute(input?: Record<string, unknown>): Promise<Record<string, unknown>>
 }
 
@@ -57,7 +61,7 @@ const dom = new JSDOM(`<!doctype html><html><body>
 
   <form id="application" aria-label="Application wizard">
     <span aria-current="step">Step 1 of 3</span>
-    <label>Full name <input name="fullName" autocomplete="name"></label>
+    <label>Full name <input name="fullName" autocomplete="name" required></label>
     <label>Street <input name="street" autocomplete="shipping address-line1"></label>
     <label>City <input name="city" autocomplete="shipping address-level2"></label>
     <label>Postal code <input name="postal" autocomplete="shipping postal-code"></label>
@@ -102,7 +106,8 @@ const dom = new JSDOM(`<!doctype html><html><body>
 </body></html>`, { url: "https://example.com/", runScripts: "outside-only" })
 
 const registered = new Map<string, RegisteredTool>()
-Object.defineProperty(dom.window.document, "modelContext", { value: { registerTool(tool: RegisteredTool) { registered.set(tool.name, tool) } } })
+const registrationSignals: AbortSignal[] = []
+Object.defineProperty(dom.window.document, "modelContext", { value: { registerTool(tool: RegisteredTool, options: { signal: AbortSignal }) { registered.set(tool.name, tool); registrationSignals.push(options.signal); return Promise.resolve() } } })
 Object.defineProperty(dom.window, "CSS", { value: { escape: (value: string) => value } })
 Object.defineProperty(dom.window.Element.prototype, "scrollIntoView", { value() {} })
 const shopifyCart = {
@@ -187,7 +192,17 @@ dom.window.document.querySelector("#chat-form")?.addEventListener("submit", (eve
 })
 
 dom.window.eval(source)
+const registrationStatus = await (dom.window as unknown as { __agentReadyRegistration: Promise<{ ready: boolean; registered: number }> }).__agentReadyRegistration
 assert.deepEqual([...registered.keys()], expectedTools)
+assert.equal(registrationStatus.ready, true)
+assert.equal(registrationStatus.registered, 30)
+assert.equal(registrationSignals.length, 30)
+assert.ok(registrationSignals.every((signal) => !signal.aborted))
+for (const tool of registered.values()) {
+  assert.match(tool.name, /^[A-Za-z0-9_.-]{1,128}$/)
+  assert.ok(tool.title.length > 0, `${tool.name} must expose a user-facing title`)
+  assert.ok(Object.keys(tool.annotations ?? {}).every((key) => ["readOnlyHint", "untrustedContentHint"].includes(key)), `${tool.name} registered a non-standard WebMCP annotation`)
+}
 
 const run = (name: string, input: Record<string, unknown> = {}) => registered.get(name)!.execute(input)
 
@@ -200,13 +215,16 @@ assert.equal((await run("get_collection_item", { slug: "agent-kit" })).found, tr
 
 const inspected = await run("inspect_forms")
 assert.equal(inspected.count, 3)
-const inspectedForms = inspected.forms as Array<{ fields: InspectedField[] }>
+const inspectedForms = inspected.forms as Array<{ fields: InspectedField[]; validation: { valid: boolean }; usesCurrentVisibleValues: boolean }>
 const checkoutCard = inspectedForms[1].fields.find((field) => field.key === "cardNumber")!
 assert.equal(checkoutCard.sensitive, true)
 assert.equal(checkoutCard.value, undefined)
+assert.equal(inspectedForms[0].validation.valid, false)
+assert.equal(inspectedForms[0].usesCurrentVisibleValues, true)
 
 const filled = await run("prefill_form", { formIndex: 0, values: { fullName: "Ada Lovelace", plan: "pro", interests: ["design", "ai"], budget: 80 } })
 assert.equal(filled.filled, true)
+assert.equal((filled.validation as { valid: boolean }).valid, true)
 assert.equal((dom.window.document.querySelector('[name="fullName"]') as HTMLInputElement).value, "Ada Lovelace")
 assert.equal((dom.window.document.querySelector('[name="plan"][value="pro"]') as HTMLInputElement).checked, true)
 assert.equal((dom.window.document.querySelector('[name="interests"][value="ai"]') as HTMLInputElement).checked, true)
@@ -272,11 +290,22 @@ assert.ok((crawlPolicy.evidence as string[]).includes("content license"))
 const checkout = await run("inspect_checkout")
 assert.equal(checkout.count, 1)
 assert.ok(((checkout.policy as { humanOnly: string[] }).humanOnly).includes("final payment confirmation"))
+assert.equal((checkout.policy as { doNotAutomateHumanOnlyControls: boolean }).doNotAutomateHumanOnlyControls, true)
+const payButton = dom.window.document.querySelector<HTMLButtonElement>("#checkout button")!
+assert.equal(payButton.dataset.agentreadyHumanOnly, "true")
+let syntheticPayClicks = 0
+payButton.addEventListener("click", () => { syntheticPayClicks += 1 })
+payButton.click()
+assert.equal(syntheticPayClicks, 0, "synthetic activation of a human-only payment control must be blocked")
+assert.equal(payButton.dataset.agentreadyAgentBlocked, "true")
 const prepared = await run("prepare_checkout", { formIndex: 1, values: { billingEmail: "ada@example.com", cardNumber: "4111111111111111", cvv: "999" } })
 assert.equal(prepared.prepared, true)
 assert.equal((prepared.blocked as unknown[]).length, 2)
 assert.equal((dom.window.document.querySelector('[name="billingEmail"]') as HTMLInputElement).value, "ada@example.com")
-assert.equal((await run("submit_form", { formIndex: 1 })).submitted, false)
+const refusedSubmission = await run("submit_form", { formIndex: 1 })
+assert.equal(refusedSubmission.submitted, false)
+assert.equal(refusedSubmission.outcome, "refused")
+assert.equal(refusedSubmission.code, "sensitive_form")
 await Promise.resolve()
 assert.ok(telemetryPayloads.length > 0)
 assert.deepEqual(Object.keys(telemetryPayloads[0]).sort(), ["durationMs", "event", "outcome", "session", "tool"])
