@@ -41,6 +41,10 @@ This is the implementation audit against the product requirements for AgentReady
 | Paid JSON content contract | Implemented | `/.well-known/agentready.json`, `/agentready/schema.json`, and `/agentready/content.json` |
 | Crawler governance evidence | Implemented as metadata | source, timestamp, digest, payment headers, license, and request ID; these records are not a universal copyright license |
 | Cloudflare storage and abuse controls | Implemented with external setup | Durable Objects, Turnstile, and R2 human-selected upload handoff |
+| Cloudflare AI Search knowledge | Implemented with external setup | Browser Run renders allowlisted Framer URLs; an administrator-only sync route uploads Markdown with source, digest, retrieval time, and license metadata; three public WebMCP tools provide search, cited answers, and provenance |
+| Cloudflare AI Gateway chatbot path | Implemented with external setup | Optional OpenAI-compatible gateway URL/model/token generates grounded answers from retrieved AI Search chunks; secrets remain Worker-only |
+| WebMCP analytics | Implemented with external setup | Analytics Engine records only origin, tool name, success/error, anonymous session hash, duration, and count; arguments and returned content are excluded |
+| Browser Run readiness verification | Implemented with external setup | Administrator-only snapshot verifies HTTPS, installed Custom Code, rendered content, accessibility tree, forms, and headings for allowlisted origins |
 
 ## WebMCP conformance and verification
 
@@ -51,8 +55,8 @@ This is the implementation audit against the product requirements for AgentReady
 - Hidden Framer breakpoint duplicates and inactive steps are excluded.
 - Async network and chat operations accept the WebMCP execution cancellation signal.
 - Sensitive values are never returned, filled, persisted, or placed in tool arguments.
-- Isolated tests exercise all 25 optional tools; live tests execute the runtime installed in Framer Custom Code.
-- CI verifies the plugin, runtime, package, Cloudflare TypeScript, and all three Worker bundles.
+- Isolated tests exercise all 28 optional tools; live tests execute the runtime installed in Framer Custom Code.
+- CI verifies the plugin, runtime, package, Cloudflare TypeScript, and all four Worker bundles.
 
 ## Remaining launch inputs
 
@@ -62,5 +66,6 @@ These are operational dependencies rather than missing product code:
 2. Add Cloudflare MPP secrets, deploy the payment Worker, and configure its public endpoint in the plugin/demo.
 3. Enroll the production zone in Pay Per Crawl, deploy the crawl Worker/route, and replace the example license URL.
 4. Configure Turnstile and R2 if the optional upload handoff is demonstrated.
-5. Submit the packed plugin for Framer Marketplace review.
-6. Record the demo video and complete the Devpost submission before the official deadline.
+5. Create the AI Search instance/namespace and Analytics Engine dataset, deploy the intelligence Worker, set its admin secret, and optionally configure an AI Gateway chat endpoint.
+6. Submit the packed plugin for Framer Marketplace review.
+7. Record the demo video and complete the Devpost submission before the official deadline.

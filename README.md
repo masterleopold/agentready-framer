@@ -10,7 +10,7 @@ AgentReady scans a Framer project, suggests useful agent capabilities, and insta
 
 Browser agents normally have to infer intent from pixels and DOM structure. WebMCP lets a website expose explicit, typed tools through `document.modelContext.registerTool()`. AgentReady makes that workflow accessible to Framer designers.
 
-The complete configured runtime can publish 25 focused tools:
+The complete configured runtime can publish 28 focused tools:
 
 - `search_site` — search visible headings, text, and links
 - `search_collection` — search serialized Framer CMS content
@@ -22,6 +22,7 @@ The complete configured runtime can publish 25 focused tools:
 - Shopify Storefront — search products, manage cart state, and hand off to Shopify Checkout
 - Cloudflare Agentic Payments — discover paid offers and expose MPP HTTP 402 challenges and receipts
 - Cloudflare Pay Per Crawl — publish price, permitted purposes, evidence guidance, and a paid structured JSON representation of Framer content
+- Cloudflare intelligence — search and answer from AI Search with citations, attest same-origin content, record anonymous tool metrics, and verify deployments with Browser Run
 - `submit_form` — optional side-effecting submission for non-payment, non-authentication forms
 
 ## Product flow
@@ -38,7 +39,7 @@ The WebMCP runtime follows Chrome's imperative API guidance: capability-scoped t
 
 The public Framer Marketplace package is produced with `npm run pack`. Enterprise teams can alternatively self-host the static `dist` output as a Workspace Plugin on Vercel or Cloudflare Pages; `framer.json` must remain at the deployment root. This plugin UI hosting is separate from the optional Cloudflare Workers used for payments, uploads, and paid crawl delivery.
 
-See [the request coverage audit](docs/request-coverage.md) for implementation and launch status, [the capability matrix](docs/capability-matrix.md) for the full 25-tool inventory and safety boundaries, and [the WebMCP design notes](docs/webmcp-design.md) for the Chrome API decisions.
+See [the request coverage audit](docs/request-coverage.md) for implementation and launch status, [the capability matrix](docs/capability-matrix.md) for the full 28-tool inventory and safety boundaries, and [the WebMCP design notes](docs/webmcp-design.md) for the Chrome API decisions.
 
 ## Development
 
@@ -72,7 +73,7 @@ npm run typecheck --prefix cloudflare
 AGENTREADY_DEMO_URL=https://make-aspects-824660.framer.app/agent-ready npm run test:live
 ```
 
-The live test fetches the actual Framer HTML and executes installed Custom Code with a WebMCP-compatible model context. The isolated suite covers all 25 optional tools.
+The live test fetches the actual Framer HTML and executes installed Custom Code with a WebMCP-compatible model context. The isolated suite covers all 28 optional tools.
 
 ## Testing WebMCP
 
@@ -112,7 +113,7 @@ The Challenge demo is built in Framer through its Server API, includes desktop/t
 
 See [docs/submission.md](docs/submission.md) for the submission copy, demo prompts, and video outline.
 
-The optional [Cloudflare Worker](cloudflare/README.md) adds Durable Object session state, Turnstile verification, R2 upload handoff, and an MPP-protected offer endpoint.
+The optional [Cloudflare Workers](cloudflare/README.md) add Durable Object session state, Turnstile verification, R2 upload handoff, MPP-protected offers, paid JSON delivery, AI Search knowledge, AI Gateway answers, anonymous Analytics Engine telemetry, cryptographic provenance, and Browser Run verification.
 
 ## License
 

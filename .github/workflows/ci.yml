@@ -29,3 +29,4 @@ jobs:
       - run: npm exec --prefix cloudflare wrangler -- deploy --dry-run --config cloudflare/wrangler.jsonc --outdir /tmp/agentready-edge
       - run: npm exec --prefix cloudflare wrangler -- deploy --dry-run --config cloudflare/wrangler.payments.jsonc --outdir /tmp/agentready-payments
       - run: npm exec --prefix cloudflare wrangler -- deploy --dry-run --config cloudflare/wrangler.crawl.jsonc --outdir /tmp/agentready-crawl
+      - run: npm exec --prefix cloudflare wrangler -- deploy --dry-run --config cloudflare/wrangler.intelligence.jsonc --outdir /tmp/agentready-intelligence

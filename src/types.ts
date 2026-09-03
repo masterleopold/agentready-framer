@@ -9,6 +9,7 @@ export type CapabilityId =
   | "shopifyCommerce"
   | "agenticPayments"
   | "payPerCrawl"
+  | "cloudflareKnowledge"
   | "formSubmit"
 
 export interface CmsFieldSnapshot {
@@ -52,6 +53,10 @@ export interface RuntimeConfig {
     apiVersion: string
   }
   cloudflarePayments?: { endpoint: string }
+  cloudflareIntelligence?: {
+    endpoint: string
+    telemetry: boolean
+  }
   crawlMonetization?: {
     currency: "USD"
     pricePerRequest: string

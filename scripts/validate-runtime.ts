@@ -4,7 +4,8 @@ import { buildWebMcpCustomCode } from "../src/runtime"
 import type { RuntimeConfig } from "../src/types"
 
 const expectedTools = [
-  "search_site", "search_collection", "get_collection_item", "navigate_to",
+  "search_site", "search_site_knowledge", "answer_from_site", "get_content_provenance",
+  "search_collection", "get_collection_item", "navigate_to",
   "inspect_forms", "prefill_form", "fill_address", "select_form_options",
   "set_form_date", "advance_form_step", "prepare_file_upload",
   "read_conversation", "compose_chat_message", "send_chat_message",
@@ -18,7 +19,7 @@ const config: RuntimeConfig = {
   version: 1,
   projectName: "Demo </script><script>alert('unsafe')</script>",
   generatedAt: "2026-09-03T12:00:00.000Z",
-  capabilities: ["siteSearch", "cmsSearch", "navigation", "formFill", "conversation", "chatSend", "checkoutAssist", "shopifyCommerce", "agenticPayments", "payPerCrawl", "formSubmit"],
+  capabilities: ["siteSearch", "cmsSearch", "navigation", "formFill", "conversation", "chatSend", "checkoutAssist", "shopifyCommerce", "agenticPayments", "payPerCrawl", "cloudflareKnowledge", "formSubmit"],
   collections: [{
     id: "products",
     name: "Products",
@@ -27,6 +28,7 @@ const config: RuntimeConfig = {
   }],
   shopify: { storeDomain: "agentready.myshopify.com", publicAccessToken: "public-demo-token", apiVersion: "2026-07" },
   cloudflarePayments: { endpoint: "https://agentready-payments.workers.dev" },
+  cloudflareIntelligence: { endpoint: "https://agentready-intelligence.workers.dev", telemetry: true },
   crawlMonetization: { currency: "USD", pricePerRequest: "0.01", purposes: { search: true, aiInput: true, aiTrain: false }, contentUse: "reference" },
 }
 
@@ -112,7 +114,24 @@ const shopifyCart = {
   cost: { subtotalAmount: { amount: "29.00", currencyCode: "USD" }, totalAmount: { amount: "29.00", currencyCode: "USD" } },
   lines: { nodes: [{ id: "gid://shopify/CartLine/1", quantity: 1, merchandise: { id: "gid://shopify/ProductVariant/1", title: "Default", product: { handle: "agent-kit", title: "Agent Kit" }, price: { amount: "29.00", currencyCode: "USD" }, selectedOptions: [] } }] },
 }
+const telemetryPayloads: Array<Record<string, unknown>> = []
 Object.defineProperty(dom.window, "fetch", { value: async (url: string, init?: { body?: string }) => {
+  if (url.endsWith("/v1/telemetry")) {
+    telemetryPayloads.push(JSON.parse(init?.body ?? "{}") as Record<string, unknown>)
+    return { ok: true, status: 204, headers: { get: () => null }, json: async () => ({}) }
+  }
+  if (url.endsWith("/v1/knowledge/search")) return {
+    ok: true, status: 200, headers: { get: () => null },
+    json: async () => ({ query: "agent", results: [{ source: "https://example.com/docs", text: "AgentReady knowledge" }], count: 1, index: "agentready-site" }),
+  }
+  if (url.endsWith("/v1/knowledge/answer")) return {
+    ok: true, status: 200, headers: { get: () => null },
+    json: async () => ({ answer: "AgentReady makes Framer sites agent-ready. [1]", sources: [{ source: "https://example.com/docs" }] }),
+  }
+  if (url.endsWith("/v1/provenance")) return {
+    ok: true, status: 200, headers: { get: () => null },
+    json: async () => ({ canonical: "https://example.com/", contentDigest: "sha-256=:demo:", license: "https://example.com/terms" }),
+  }
   if (url.includes("agentready-payments.workers.dev/v1/offers/agentready-creator/purchase")) return {
     ok: false, status: 402,
     headers: { get: (name: string) => name.toLowerCase() === "www-authenticate" ? "Payment id=demo" : null },
@@ -146,6 +165,9 @@ assert.deepEqual([...registered.keys()], expectedTools)
 const run = (name: string, input: Record<string, unknown> = {}) => registered.get(name)!.execute(input)
 
 assert.equal((await run("search_site", { query: "multi-step" })).count, 1)
+assert.equal((await run("search_site_knowledge", { query: "agent" })).count, 1)
+assert.match(String((await run("answer_from_site", { question: "What is AgentReady?" })).answer), /Framer/)
+assert.match(String((await run("get_content_provenance")).contentDigest), /^sha-256=/)
 assert.equal((await run("search_collection", { query: "Agent Kit" })).count, 1)
 assert.equal((await run("get_collection_item", { slug: "agent-kit" })).found, true)
 
@@ -213,5 +235,10 @@ assert.equal(prepared.prepared, true)
 assert.equal((prepared.blocked as unknown[]).length, 2)
 assert.equal((dom.window.document.querySelector('[name="billingEmail"]') as HTMLInputElement).value, "ada@example.com")
 assert.equal((await run("submit_form", { formIndex: 1 })).submitted, false)
+await Promise.resolve()
+assert.ok(telemetryPayloads.length > 0)
+assert.deepEqual(Object.keys(telemetryPayloads[0]).sort(), ["durationMs", "event", "outcome", "session", "tool"])
+assert.equal(JSON.stringify(telemetryPayloads).includes("ada@example.com"), false)
+assert.equal(JSON.stringify(telemetryPayloads).includes("What is AgentReady?"), false)
 
-console.log("AgentReady runtime validation passed: 25 tools, forms, chat, Shopify, payments, and crawl policy")
+console.log("AgentReady runtime validation passed: 28 tools, forms, chat, Shopify, payments, knowledge, provenance, telemetry, and crawl policy")

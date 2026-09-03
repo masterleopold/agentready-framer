@@ -11,7 +11,7 @@ function Choice({ name, value, children, type = "checkbox", defaultChecked = fal
   </label>
 }
 
-export default function AgentReadyPlayground({ checkoutUrl = "", creatorPrice = "$49", studioPrice = "$149", agencyPrice = "$399", paymentEndpoint = "" }: { checkoutUrl?: string; creatorPrice?: string; studioPrice?: string; agencyPrice?: string; paymentEndpoint?: string }) {
+export default function AgentReadyPlayground({ checkoutUrl = "", creatorPrice = "$49", studioPrice = "$149", agencyPrice = "$399", paymentEndpoint = "", intelligenceEndpoint = "" }: { checkoutUrl?: string; creatorPrice?: string; studioPrice?: string; agencyPrice?: string; paymentEndpoint?: string; intelligenceEndpoint?: string }) {
   const [step, setStep] = React.useState(1)
   const [messages, setMessages] = React.useState([{ role: "assistant", text: "Tell me what you are trying to accomplish and I’ll help complete the workflow." }])
   const [draft, setDraft] = React.useState("")
@@ -21,6 +21,8 @@ export default function AgentReadyPlayground({ checkoutUrl = "", creatorPrice = 
   const [applicationStatus, setApplicationStatus] = React.useState("")
   const [paymentStatus, setPaymentStatus] = React.useState("Request a machine-readable payment challenge.")
   const [showJson, setShowJson] = React.useState(false)
+  const [knowledgeQuery, setKnowledgeQuery] = React.useState("How does AgentReady keep payments safe?")
+  const [knowledgeStatus, setKnowledgeStatus] = React.useState("Hybrid search · cited sources · SHA-256 provenance")
   const selectedPrice = license === "studio" ? studioPrice : license === "agency" ? agencyPrice : creatorPrice
 
   const send = (event: React.FormEvent) => {
@@ -54,6 +56,22 @@ export default function AgentReadyPlayground({ checkoutUrl = "", creatorPrice = 
       setPaymentStatus(response.status === 402 ? "✓ HTTP 402 challenge received · payment-capable agent may continue" : response.ok ? "✓ Payment receipt verified" : "Payment endpoint returned HTTP " + response.status)
     } catch {
       setPaymentStatus("Payment Worker could not be reached.")
+    }
+  }
+
+  const searchKnowledge = async (event: React.FormEvent) => {
+    event.preventDefault()
+    if (!intelligenceEndpoint.startsWith("https://")) {
+      setKnowledgeStatus("Connect the deployed Cloudflare Intelligence Worker to query AI Search.")
+      return
+    }
+    setKnowledgeStatus("Searching Cloudflare AI Search…")
+    try {
+      const response = await fetch(intelligenceEndpoint.replace(/\/$/, "") + "/v1/knowledge/search", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ query: knowledgeQuery, limit: 3 }) })
+      const result = await response.json() as { count?: number; error?: string }
+      setKnowledgeStatus(response.ok ? `✓ ${result.count ?? 0} cited source chunks · anonymous tool metric recorded` : result.error ?? `Search returned HTTP ${response.status}`)
+    } catch {
+      setKnowledgeStatus("Cloudflare Intelligence Worker could not be reached.")
     }
   }
 
@@ -112,6 +130,7 @@ export default function AgentReadyPlayground({ checkoutUrl = "", creatorPrice = 
       <section aria-label="Shopify cart demo" style={{ padding: 18, border: "1px solid #292929", borderRadius: 14, background: "#111" }}><div style={{ color: "#77d89c", fontSize: 10, fontWeight: 700, letterSpacing: ".12em" }}>SHOPIFY STOREFRONT</div><h3 style={{ margin: "9px 0 5px", fontSize: 18, fontWeight: 500 }}>Agent Kit — Pro</h3><p style={{ margin: "0 0 14px", color: "#777", fontSize: 11 }}>Variant selection, cart state, discounts, and buyer context via Storefront API.</p><button type="button" style={button} onClick={() => setCart((value) => value + 1)}>Add to cart · ${"29"}</button><span style={{ marginLeft: 10, color: "#888", fontSize: 11 }}>{cart} in cart</span></section>
       <section aria-label="Cloudflare payment demo" style={{ padding: 18, border: "1px solid #292929", borderRadius: 14, background: "#111" }}><div style={{ color: "#f5a348", fontSize: 10, fontWeight: 700, letterSpacing: ".12em" }}>CLOUDFLARE · HTTP 402</div><h3 style={{ margin: "9px 0 5px", fontSize: 18, fontWeight: 500 }}>Agentic plugin purchase</h3><p style={{ margin: "0 0 14px", color: "#777", fontSize: 11 }}>MPP challenge, scoped agent approval, and a protocol receipt without exposing wallet keys to Framer.</p><button type="button" style={{ ...button, background: "#f5a348" }} onClick={() => void requestPayment()}>Request payment challenge</button><p aria-live="polite" style={{ margin: "10px 0 0", color: "#999", fontSize: 10, lineHeight: 1.4 }}>{paymentStatus}</p></section>
       <section aria-label="Paid structured content demo" style={{ padding: 18, border: "1px solid #292929", borderRadius: 14, background: "#111" }}><div style={{ color: "#63c7ff", fontSize: 10, fontWeight: 700, letterSpacing: ".12em" }}>PAY PER CRAWL · JSON</div><h3 style={{ margin: "9px 0 5px", fontSize: 18, fontWeight: 500 }}>Licensed content feed</h3><p style={{ margin: "0 0 14px", color: "#777", fontSize: 11 }}>Canonical source, JSON-LD, permitted purposes, license, retrieval time, charged header, and SHA-256 digest.</p><button type="button" style={{ ...button, color: "#9bdcff", background: "#080d12" }} onClick={() => setShowJson((value) => !value)}>{showJson ? "Hide JSON contract" : "Preview JSON contract"}</button>{showJson && <pre style={{ margin: "10px 0 0", padding: 10, color: "#9bdcff", background: "#080d12", borderRadius: 8, fontSize: 9, lineHeight: 1.45, overflow: "auto" }}>{JSON.stringify({ schema: "/agentready/schema.json", source: { canonical: location.href }, license: { contentUse: "reference", permittedPurposes: ["search", "ai-input"] }, provenance: { contentDigest: "sha-256" } }, null, 2)}</pre>}</section>
+      <section aria-label="Cloudflare intelligence demo" style={{ padding: 18, border: "1px solid #292929", borderRadius: 14, background: "#111" }}><div style={{ color: "#b793ff", fontSize: 10, fontWeight: 700, letterSpacing: ".12em" }}>AI SEARCH · BROWSER RUN</div><h3 style={{ margin: "9px 0 5px", fontSize: 18, fontWeight: 500 }}>Grounded site knowledge</h3><p style={{ margin: "0 0 12px", color: "#777", fontSize: 11 }}>Rendered Framer pages become cited AI Search knowledge. Browser Run verifies every release; Analytics Engine records privacy-safe tool health.</p><form onSubmit={searchKnowledge} style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 8 }}><input style={{ ...field, height: 42 }} name="knowledgeQuery" aria-label="Knowledge search query" value={knowledgeQuery} onChange={(event) => setKnowledgeQuery(event.target.value)} /><button type="submit" style={{ ...button, background: "#b793ff" }}>Search</button></form><p aria-live="polite" style={{ margin: "10px 0 0", color: "#999", fontSize: 10, lineHeight: 1.4 }}>{knowledgeStatus}</p></section>
     </div>
   </div>
 }
@@ -122,4 +141,5 @@ addPropertyControls(AgentReadyPlayground, {
   studioPrice: { type: ControlType.String, title: "Studio Price", defaultValue: "$149" },
   agencyPrice: { type: ControlType.String, title: "Agency Price", defaultValue: "$399" },
   paymentEndpoint: { type: ControlType.String, title: "MPP Worker", placeholder: "https://agentready-payments.workers.dev" },
+  intelligenceEndpoint: { type: ControlType.String, title: "AI Search Worker", placeholder: "https://agentready-intelligence.workers.dev" },
 })

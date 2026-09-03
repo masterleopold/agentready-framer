@@ -7,9 +7,11 @@
     "dev": "wrangler dev",
     "dev:payments": "wrangler dev --config wrangler.payments.jsonc",
     "dev:crawl": "wrangler dev --config wrangler.crawl.jsonc",
+    "dev:intelligence": "wrangler dev --config wrangler.intelligence.jsonc --remote",
     "deploy": "wrangler deploy",
     "deploy:payments": "wrangler deploy --config wrangler.payments.jsonc",
     "deploy:crawl": "wrangler deploy --config wrangler.crawl.jsonc",
+    "deploy:intelligence": "wrangler deploy --config wrangler.intelligence.jsonc",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {

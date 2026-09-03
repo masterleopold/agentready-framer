@@ -16,10 +16,11 @@ AgentReady separates preparation, external actions, and irreversible actions. A 
 | Shopify | product/variant search, cart create/read/update, discounts, buyer context, checkout URL | Cart secret is never returned. Shopify-hosted checkout owns payment authentication and confirmation |
 | Cloudflare Agentic Payments | discover offers and surface MPP HTTP 402 challenges/receipts | The paying agent owns its scoped key. No wallet private key is placed in Framer or WebMCP arguments |
 | Cloudflare Pay Per Crawl | expose crawler price, permitted purposes, discovery metadata, a JSON Schema, structured JSON-LD content, content digest, license, provenance, and evidence guidance | Cloudflare zone setup performs enforcement and billing; AgentReady generates JSON while Pay Per Crawl itself is content-type agnostic |
+| Cloudflare intelligence | AI Search hybrid retrieval and cited answers, same-origin SHA-256 attestations, anonymous per-tool metrics, and Browser Run release verification | Cloudflare account management and admin verification remain server-side; prompts, form values, payment data, and chat text are not analytics fields |
 
 ## Tool inventory
 
-The full configured runtime registers 25 tools:
+The full configured runtime registers 28 tools:
 
 - Discovery: `search_site`, `search_collection`, `get_collection_item`, `navigate_to`
 - Forms: `inspect_forms`, `prefill_form`, `fill_address`, `select_form_options`, `set_form_date`, `advance_form_step`, `prepare_file_upload`, `submit_form`
@@ -28,8 +29,9 @@ The full configured runtime registers 25 tools:
 - Shopify: `search_shopify_products`, `inspect_shopify_cart`, `add_shopify_cart_line`, `update_shopify_cart`, `prepare_shopify_checkout`
 - Cloudflare payments: `inspect_agentic_offers`, `request_agentic_payment`
 - Crawl monetization: `discover_paid_content`
+- Knowledge and trust: `search_site_knowledge`, `answer_from_site`, `get_content_provenance`
 
-`npm test` runs all 25 tools against a browser fixture containing a multi-step application, address fields, radios, checkboxes, date/time inputs, a file input, hidden breakpoint duplicates, a conversational UI, a sensitive checkout, a Shopify Storefront mock, an MPP challenge, and a paid-crawl policy.
+`npm test` runs all 28 tools against a browser fixture containing a multi-step application, address fields, radios, checkboxes, date/time inputs, a file input, hidden breakpoint duplicates, a conversational UI, a sensitive checkout, a Shopify Storefront mock, an MPP challenge, paid-crawl policy, AI Search results, a cited answer, and a provenance attestation.
 
 ## Known limits
 

@@ -17,6 +17,7 @@ const CAPABILITIES: Array<{ id: CapabilityId; title: string; description: string
   { id: "shopifyCommerce", title: "Shopify commerce", description: "Search products, manage a Storefront cart, and hand off to Shopify Checkout." },
   { id: "agenticPayments", title: "Cloudflare payments", description: "Expose MPP payment challenges and receipts for agent-native paid offers." },
   { id: "payPerCrawl", title: "Pay Per Crawl · JSON", description: "Sell normalized Framer content as a provenance-rich JSON feed through Cloudflare." },
+  { id: "cloudflareKnowledge", title: "Cloudflare intelligence", description: "Add AI Search answers, source provenance, anonymous tool analytics, and Browser Run verification." },
   { id: "formSubmit", title: "Submit non-payment forms", description: "Allow final submission except checkout, authentication, and sensitive forms.", risk: "Review carefully" },
 ]
 
@@ -68,6 +69,8 @@ export function App() {
   const [shopifyDomain, setShopifyDomain] = useState("")
   const [shopifyToken, setShopifyToken] = useState("")
   const [paymentEndpoint, setPaymentEndpoint] = useState("")
+  const [intelligenceEndpoint, setIntelligenceEndpoint] = useState("")
+  const [telemetryEnabled, setTelemetryEnabled] = useState(true)
   const [crawlPrice, setCrawlPrice] = useState("0.01")
   const [allowAiTraining, setAllowAiTraining] = useState(false)
   const [settingsLoaded, setSettingsLoaded] = useState(false)
@@ -114,6 +117,8 @@ export function App() {
           shopifyDomain: string
           shopifyToken: string
           paymentEndpoint: string
+          intelligenceEndpoint: string
+          telemetryEnabled: boolean
           crawlPrice: string
           allowAiTraining: boolean
         }>
@@ -121,6 +126,8 @@ export function App() {
         if (typeof parsed.shopifyDomain === "string") setShopifyDomain(parsed.shopifyDomain)
         if (typeof parsed.shopifyToken === "string") setShopifyToken(parsed.shopifyToken)
         if (typeof parsed.paymentEndpoint === "string") setPaymentEndpoint(parsed.paymentEndpoint)
+        if (typeof parsed.intelligenceEndpoint === "string") setIntelligenceEndpoint(parsed.intelligenceEndpoint)
+        if (typeof parsed.telemetryEnabled === "boolean") setTelemetryEnabled(parsed.telemetryEnabled)
         if (typeof parsed.crawlPrice === "string") setCrawlPrice(parsed.crawlPrice)
         if (typeof parsed.allowAiTraining === "boolean") setAllowAiTraining(parsed.allowAiTraining)
       } catch {
@@ -132,21 +139,23 @@ export function App() {
   useEffect(() => {
     if (!settingsLoaded || !canSaveSettings) return
     const timeout = window.setTimeout(() => {
-      void framer.setPluginData(SETTINGS_KEY, JSON.stringify({ enabled, shopifyDomain, shopifyToken, paymentEndpoint, crawlPrice, allowAiTraining }))
+      void framer.setPluginData(SETTINGS_KEY, JSON.stringify({ enabled, shopifyDomain, shopifyToken, paymentEndpoint, intelligenceEndpoint, telemetryEnabled, crawlPrice, allowAiTraining }))
     }, 250)
     return () => window.clearTimeout(timeout)
-  }, [allowAiTraining, canSaveSettings, crawlPrice, enabled, paymentEndpoint, settingsLoaded, shopifyDomain, shopifyToken])
+  }, [allowAiTraining, canSaveSettings, crawlPrice, enabled, intelligenceEndpoint, paymentEndpoint, settingsLoaded, shopifyDomain, shopifyToken, telemetryEnabled])
 
   const validShopifyDomain = /^[a-z0-9][a-z0-9-]*\.myshopify\.com$/i.test(shopifyDomain.trim().replace(/^https?:\/\//, "").replace(/\/$/, ""))
   const validPaymentEndpoint = /^https:\/\/[a-z0-9.-]+(?::\d+)?(?:\/.*)?$/i.test(paymentEndpoint.trim())
+  const validIntelligenceEndpoint = /^https:\/\/[a-z0-9.-]+(?::\d+)?(?:\/.*)?$/i.test(intelligenceEndpoint.trim())
   const validCrawlPrice = /^\d+(?:\.\d{1,6})?$/.test(crawlPrice) && Number(crawlPrice) > 0
   const effectiveEnabled = useMemo(() => enabled.filter((id) => {
     if (id === "cmsSearch") return Boolean(scan?.collections.length)
     if (id === "shopifyCommerce") return validShopifyDomain
     if (id === "agenticPayments") return validPaymentEndpoint
+    if (id === "cloudflareKnowledge") return validIntelligenceEndpoint
     if (id === "payPerCrawl") return validCrawlPrice
     return true
-  }), [enabled, scan, validCrawlPrice, validPaymentEndpoint, validShopifyDomain])
+  }), [enabled, scan, validCrawlPrice, validIntelligenceEndpoint, validPaymentEndpoint, validShopifyDomain])
   const toolCount = effectiveEnabled.reduce((count, id) => count + ({
     siteSearch: 1,
     cmsSearch: 2,
@@ -158,6 +167,7 @@ export function App() {
     shopifyCommerce: 5,
     agenticPayments: 2,
     payPerCrawl: 1,
+    cloudflareKnowledge: 3,
     formSubmit: 1,
   }[id] ?? 0), 0)
 
@@ -179,6 +189,7 @@ export function App() {
         collections: scan.collections,
         shopify: validShopifyDomain ? { storeDomain, publicAccessToken: shopifyToken.trim() || undefined, apiVersion: "2026-07" } : undefined,
         cloudflarePayments: validPaymentEndpoint ? { endpoint: paymentEndpoint.trim().replace(/\/$/, "") } : undefined,
+        cloudflareIntelligence: validIntelligenceEndpoint ? { endpoint: intelligenceEndpoint.trim().replace(/\/$/, ""), telemetry: telemetryEnabled } : undefined,
         crawlMonetization: validCrawlPrice ? { currency: "USD", pricePerRequest: crawlPrice, purposes: { search: true, aiInput: true, aiTrain: allowAiTraining }, contentUse: allowAiTraining ? "full" : "reference" } : undefined,
       }
       await framer.setCustomCode({ html: buildWebMcpCustomCode(config), location: "bodyEnd" })
@@ -272,6 +283,12 @@ export function App() {
           <input value={crawlPrice} onChange={(event) => setCrawlPrice(event.target.value)} inputMode="decimal" placeholder="USD per successful crawl" aria-label="USD price per successful crawl" />
           <label className="compact-check"><input type="checkbox" checked={allowAiTraining} onChange={(event) => setAllowAiTraining(event.target.checked)} />Allow paid AI training use</label>
           <p>Requires a Cloudflare-proxied custom domain and Pay Per Crawl beta access.</p>
+        </div>}
+        {enabled.includes("cloudflareKnowledge") && <div className="integration-settings">
+          <div className="section-label">CLOUDFLARE INTELLIGENCE</div>
+          <input value={intelligenceEndpoint} onChange={(event) => setIntelligenceEndpoint(event.target.value)} placeholder="https://your-intelligence-worker.workers.dev" aria-label="Cloudflare intelligence endpoint" />
+          <label className="compact-check"><input type="checkbox" checked={telemetryEnabled} onChange={(event) => setTelemetryEnabled(event.target.checked)} />Anonymous WebMCP tool analytics</label>
+          <p>{validIntelligenceEndpoint ? "Ready · AI Search, provenance, analytics, and Browser Run verification." : "Enter the HTTPS URL of the AgentReady intelligence Worker."}</p>
         </div>}
       </section>
 

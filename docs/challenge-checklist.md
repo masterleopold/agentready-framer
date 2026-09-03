@@ -27,10 +27,10 @@ Checked against the official OpenAI challenge page, Devpost overview, rules, and
 
 - Framer-native plugin and live responsive Framer site.
 - Imperative tools registered by top-level Custom Code.
-- 25-tool test matrix covering forms, conversation, commerce, payments, and paid crawling.
+- 28-tool test matrix covering forms, conversation, commerce, payments, paid crawling, cited knowledge, and provenance.
 - Visible human/agent handoffs for files, external messaging, checkout, and payment.
 - Shopify Storefront cart workflow plus Shopify-hosted checkout handoff.
-- Cloudflare Durable Objects, R2, Turnstile, MPP Agentic Payments, and Pay Per Crawl pricing reference Workers.
+- Cloudflare Durable Objects, R2, Turnstile, MPP Agentic Payments, Pay Per Crawl, AI Search, Browser Run, Analytics Engine, Workers Observability, and optional AI Gateway reference Workers.
 - MIT license and public repository.
 
 ## Freeze rule

@@ -1,0 +1,15 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "agentready-intelligence",
+  "main": "src/intelligence.ts",
+  "compatibility_date": "2026-09-03",
+  "ai_search_namespaces": [{ "binding": "AI_SEARCH", "namespace": "agentready", "remote": true }],
+  "browser": { "binding": "BROWSER", "remote": true },
+  "analytics_engine_datasets": [{ "binding": "ANALYTICS", "dataset": "agentready_webmcp" }],
+  "vars": {
+    "ALLOWED_ORIGINS": "https://example.framer.website",
+    "AI_SEARCH_INSTANCE": "agentready-site",
+    "CONTENT_LICENSE_URL": "https://example.framer.website/terms"
+  },
+  "observability": { "enabled": true }
+}

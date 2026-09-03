@@ -35,3 +35,23 @@ Production buyer agents should use scoped keys with spending and recipient restr
 Pay Per Crawl does not inherently convert a page to JSON. AgentReady deliberately adds this structured delivery layer so a crawler can pay for stable machine-readable content. The Worker only sends `crawler-price` when Cloudflare requests in-band pricing through `cf-pay-per-crawl`; Cloudflare remains responsible for the signed crawler identity, `402` challenge, settlement, and `crawler-charged` evidence.
 
 Pay Per Crawl is currently a closed beta and Cloudflare account configuration remains mandatory. The Worker does not itself charge crawlers; Cloudflare identifies signed crawlers, emits `402 Payment Required`, bills successful access, and returns `crawler-charged`. Treat retained request signatures, price/charged headers, timestamps, and content hashes as governance evidence—not as a universal legal license or protection from litigation.
+
+## Intelligence Worker
+
+`src/intelligence.ts` combines four Cloudflare services without exposing Cloudflare account administration to site visitors:
+
+- AI Search hybrid retrieval and grounded answers with cited source chunks.
+- Optional AI Gateway generation over retrieved excerpts. Retrieved content is explicitly treated as untrusted data.
+- Analytics Engine events containing only origin, tool name, success/error, anonymous session hash, duration, and count. Tool arguments, prompts, form values, responses, and payment data are never telemetry fields.
+- Browser Run rendering for administrator-triggered knowledge sync and release verification.
+
+The public routes are `/v1/knowledge/search`, `/v1/knowledge/answer`, `/v1/provenance`, `/v1/telemetry`, and `/v1/status`. `/v1/admin/sync` and `/v1/verify` require the `x-agentready-admin` secret and accept only URLs whose origins appear in `ALLOWED_ORIGINS`.
+
+1. Replace the example origins, AI Search instance, namespace, dataset, and license URL in `wrangler.intelligence.jsonc`.
+2. Add the admin secret: `npx wrangler secret put AGENTREADY_ADMIN_TOKEN --config wrangler.intelligence.jsonc`.
+3. Optionally set `AI_GATEWAY_URL`, `AI_GATEWAY_TOKEN`, and `AI_GATEWAY_MODEL`; the gateway URL must be an OpenAI-compatible chat-completions endpoint.
+4. Deploy with `npm run deploy:intelligence`.
+5. Synchronize rendered Framer pages by posting `{ "urls": ["https://your-site.example/"] }` to `/v1/admin/sync` with `x-agentready-admin`.
+6. Enter the Worker URL under **Cloudflare intelligence** in the Framer plugin and enable anonymous analytics if desired.
+
+Browser Run bindings require remote development, so use `npm run dev:intelligence`. AI Search and Browser Run account resources are external prerequisites; the dry-run build validates their bindings without provisioning or billing them.
