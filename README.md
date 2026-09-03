@@ -8,7 +8,7 @@
 
 **Live demo:** [agentready.framer.website](https://agentready.framer.website)
 
-**Live Shopify product:** [AgentReady — WebMCP Builder for Framer](https://tkigey-1f.myshopify.com/products/agentready-webmcp-builder-for-framer) — Creator ¥7,500, Studio ¥22,500, and Agency ¥60,000. The demo routes the selected variant into Shopify's hosted cart; payment remains an explicit human action.
+**Live Shopify product:** [AgentReady — WebMCP Builder for Framer](https://tkigey-1f.myshopify.com/products/agentready-webmcp-builder-for-framer). The Framer playground presents Creator **$49**, Studio **$149**, and Agency **$399**; the connected Shopify development store currently charges the corresponding configured variants in JPY (¥7,500 / ¥22,500 / ¥60,000). Selecting a plan opens that exact variant through Shopify's hosted cart, while payment remains an explicit human action.
 
 ![AgentReady running as a development plugin inside Framer](docs/framer-plugin-live.jpg)
 
@@ -69,6 +69,7 @@ The direct `framer.website` URL cannot set the WebMCP response headers on the de
 - “Find the available form tools and prepare the application with my address, preferences, and appointment time.”
 - “Read the latest chatbot reply, compose a follow-up question, and wait for me before sending it.”
 - “Inspect the checkout and prepare every non-sensitive field. Leave payment and final confirmation to me.”
+- “Find the AgentReady product in Shopify, compare its three license variants, and add the Studio variant to the cart. Stop before checkout.”
 - “Find the AgentReady plugin offer and explain the available purchase or payment handoff.”
 
 The demo contains real multi-step forms, option groups, date/time inputs, file-picker handoff, a conversational UI, safe checkout, Shopify and Cloudflare examples, and the AgentReady runtime installed through Framer Custom Code.
@@ -125,7 +126,9 @@ Detailed provisioning, secrets, routes, and production caveats are in [cloudflar
 
 For browser deployments, configure the optional standard MCP proxy when Shopify's `/api/mcp` preflight is blocked by CORS. The included Cloudflare Intelligence Worker exposes `/v1/shopify/mcp`, fixes the destination to the configured `.myshopify.com` store, allows only policy and cart tools, forwards no caller credentials, and serves the AgentReady UCP profile at `/.well-known/ucp-agent.json`.
 
-If a store restricts MCP, catalog and cart operations fall back to Storefront GraphQL. Merchant policy answers and complete UCP behavior explicitly report themselves unavailable rather than inventing results. The live demo uses the AgentReady-owned profile above, and its product is discoverable through Shopify's native UCP catalog with all three license variants.
+If a store restricts MCP, catalog and cart operations fall back to Storefront GraphQL. An empty UCP eligibility result also falls back to the public catalog in **Auto** mode so newly published products remain discoverable while review state propagates. Merchant policy answers and complete UCP behavior explicitly report themselves unavailable rather than inventing results.
+
+The live demo uses the AgentReady-owned profile at [`/.well-known/ucp-agent.json`](https://agentready-intelligence.hara-7b1.workers.dev/.well-known/ucp-agent.json). Shopify's native UCP catalog currently returns the public AgentReady product, its Creator / Studio / Agency variants, localized JPY prices, availability, and hosted checkout URLs. `npm run test:live` verifies this real catalog result in addition to the 30 registered WebMCP tools.
 
 References: [Shopify Storefront MCP](https://shopify.dev/docs/apps/build/storefront-mcp/servers/storefront), [UCP catalog MCP binding](https://ucp.dev/latest/specification/shopping/catalog/mcp/), and [Shopify API terms](https://www.shopify.com/legal/api-terms).
 
@@ -193,7 +196,7 @@ CI runs type checking, linting, the runtime and gateway tests, the demo componen
 - WebMCP remains experimental and host support varies.
 - Origin-trial tokens expire and must match the exact published origin. Verify status in Chrome DevTools; feature detection remains authoritative.
 - Automatic MPP/x402 fulfillment requires a compatible payment-aware host. Other hosts can inspect the challenge and continue through a human handoff.
-- A production AgentReady purchase requires a configured Shopify product or HTTPS checkout URL. No merchant credentials or simulated completed payments ship in this repository.
+- Self-hosted deployments must configure their own Shopify product/variant IDs or HTTPS checkout URL. The public demo has a live product, but no merchant credentials or simulated completed payments ship in this repository.
 - Pay Per Crawl requires an enrolled Cloudflare zone. The Worker adds structured JSON; Cloudflare performs billing enforcement.
 
 ## Documentation
