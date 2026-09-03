@@ -27,9 +27,9 @@ app.use("*", cors({
 
 app.get("/v1/offers", (context) => context.json({
   offers: [{
-    id: "agentready-commerce-demo",
-    title: "AgentReady agentic commerce demo",
-    description: "A testnet digital purchase that demonstrates an HTTP 402 payment challenge and receipt.",
+    id: "agentready-plugin-license",
+    title: "AgentReady for Framer license",
+    description: "A testnet purchase of the AgentReady plugin that demonstrates an HTTP 402 payment challenge and receipt.",
     amount: workerEnv.OFFER_AMOUNT,
     protocol: "MPP",
     network: "Tempo testnet",
@@ -37,18 +37,18 @@ app.get("/v1/offers", (context) => context.json({
 }))
 
 app.get(
-  "/v1/offers/agentready-commerce-demo/purchase",
+  "/v1/offers/agentready-plugin-license/purchase",
   payments.charge({
     amount: workerEnv.OFFER_AMOUNT,
     currency: workerEnv.MPP_CURRENCY,
-    description: "AgentReady agentic commerce demo",
+    description: "AgentReady for Framer plugin license",
     recipient: workerEnv.MPP_RECIPIENT,
-    externalId: "agentready-commerce-demo",
+    externalId: "agentready-plugin-license",
   }),
   (context) => context.json({
     purchased: true,
-    offerId: "agentready-commerce-demo",
-    entitlement: "agentready-demo-receipt",
+    offerId: "agentready-plugin-license",
+    entitlement: "agentready-plugin-license-demo",
     message: "Payment verified. The protocol receipt is attached to this response.",
   }),
 )

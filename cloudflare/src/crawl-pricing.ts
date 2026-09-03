@@ -65,6 +65,7 @@ async function structuredContent(request: Request, env: Env) {
   const content: string[] = []
   let contentLength = 0
   const links: PageLink[] = []
+  const jsonLdSource: string[] = []
   let headingText = ""
   let headingLevel = 0
   let headingId: string | undefined
@@ -75,6 +76,7 @@ async function structuredContent(request: Request, env: Env) {
     .on("title", textCollector((value) => { title = value }))
     .on('meta[name="description"]', { element: (element) => { description = element.getAttribute("content") ?? undefined } })
     .on('link[rel="canonical"]', { element: (element) => { const href = element.getAttribute("href"); if (href) canonical = new URL(href, sourceUrl).href } })
+    .on('script[type="application/ld+json"]', textCollector((value) => { if (jsonLdSource.length < 20) jsonLdSource.push(value) }))
     .on("h1,h2,h3,h4,h5,h6", {
       element(element) {
         headingText = ""
@@ -102,6 +104,9 @@ async function structuredContent(request: Request, env: Env) {
     })
 
   await rewriter.transform(upstream).text()
+  const structuredData = jsonLdSource.flatMap((value) => {
+    try { const parsed: unknown = JSON.parse(value); return Array.isArray(parsed) ? parsed : [parsed] } catch { return [] }
+  })
   const body = {
     schema: "https://agentready.dev/schemas/content/v1",
     version: 1,
@@ -113,6 +118,7 @@ async function structuredContent(request: Request, env: Env) {
     headings,
     content: content.join("\n").slice(0, 100000),
     links,
+    structuredData,
     provenance: { generatedBy: "AgentReady Cloudflare Worker", sourceContentType: upstream.headers.get("content-type") },
   }
   const serialized = JSON.stringify(body)

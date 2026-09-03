@@ -27,7 +27,7 @@ The full configured runtime registers 25 tools:
 - Checkout: `inspect_checkout`, `prepare_checkout`
 - Shopify: `search_shopify_products`, `inspect_shopify_cart`, `add_shopify_cart_line`, `update_shopify_cart`, `prepare_shopify_checkout`
 - Cloudflare payments: `inspect_agentic_offers`, `request_agentic_payment`
-- Crawl monetization: `get_paid_crawl_policy`
+- Crawl monetization: `discover_paid_content`
 
 `npm test` runs all 25 tools against a browser fixture containing a multi-step application, address fields, radios, checkboxes, date/time inputs, a file input, a conversational UI, a sensitive checkout, a Shopify Storefront mock, an MPP challenge, and a paid-crawl policy.
 

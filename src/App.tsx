@@ -16,7 +16,7 @@ const CAPABILITIES: Array<{ id: CapabilityId; title: string; description: string
   { id: "checkoutAssist", title: "Checkout assistant", description: "Prepare plans, billing, shipping, and coupons; secrets stay human-only." },
   { id: "shopifyCommerce", title: "Shopify commerce", description: "Search products, manage a Storefront cart, and hand off to Shopify Checkout." },
   { id: "agenticPayments", title: "Cloudflare payments", description: "Expose MPP payment challenges and receipts for agent-native paid offers." },
-  { id: "payPerCrawl", title: "Pay Per Crawl", description: "Publish crawler pricing and content-use policy for a Cloudflare-protected domain." },
+  { id: "payPerCrawl", title: "Pay Per Crawl · JSON", description: "Sell normalized Framer content as a provenance-rich JSON feed through Cloudflare." },
   { id: "formSubmit", title: "Submit non-payment forms", description: "Allow final submission except checkout, authentication, and sensitive forms.", risk: "Review carefully" },
 ]
 

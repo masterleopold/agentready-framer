@@ -10,7 +10,7 @@ const expectedTools = [
   "read_conversation", "compose_chat_message", "send_chat_message",
   "search_shopify_products", "inspect_shopify_cart", "add_shopify_cart_line", "update_shopify_cart", "prepare_shopify_checkout",
   "inspect_agentic_offers", "request_agentic_payment",
-  "get_paid_crawl_policy",
+  "discover_paid_content",
   "inspect_checkout", "prepare_checkout", "submit_form",
 ]
 
@@ -109,14 +109,14 @@ const shopifyCart = {
   lines: { nodes: [{ id: "gid://shopify/CartLine/1", quantity: 1, merchandise: { id: "gid://shopify/ProductVariant/1", title: "Default", product: { handle: "agent-kit", title: "Agent Kit" }, price: { amount: "29.00", currencyCode: "USD" }, selectedOptions: [] } }] },
 }
 Object.defineProperty(dom.window, "fetch", { value: async (url: string, init?: { body?: string }) => {
-  if (url.includes("agentready-payments.workers.dev/v1/offers/agentready-commerce-demo/purchase")) return {
+  if (url.includes("agentready-payments.workers.dev/v1/offers/agentready-plugin-license/purchase")) return {
     ok: false, status: 402,
     headers: { get: (name: string) => name.toLowerCase() === "www-authenticate" ? "Payment id=demo" : null },
     json: async () => ({ error: "Payment required" }),
   }
   if (url.endsWith("/v1/offers")) return {
     ok: true, status: 200, headers: { get: () => null },
-    json: async () => ({ offers: [{ id: "agentready-commerce-demo", amount: "0.01" }] }),
+    json: async () => ({ offers: [{ id: "agentready-plugin-license", amount: "0.01" }] }),
   }
   assert.ok(init?.body)
   const { query } = JSON.parse(init.body) as { query: string }
@@ -191,10 +191,10 @@ const shopifyCheckout = await run("prepare_shopify_checkout")
 assert.equal(shopifyCheckout.ready, true)
 assert.equal(shopifyCheckout.requiresUserAction, true)
 assert.equal((await run("inspect_agentic_offers")).available, true)
-const payment = await run("request_agentic_payment", { offerId: "agentready-commerce-demo" })
+const payment = await run("request_agentic_payment", { offerId: "agentready-plugin-license" })
 assert.equal(payment.paymentRequired, true)
 assert.equal(payment.protocol, "MPP")
-const crawlPolicy = await run("get_paid_crawl_policy")
+const crawlPolicy = await run("discover_paid_content")
 assert.equal((crawlPolicy.pricing as { amount: string }).amount, "0.01")
 assert.equal((crawlPolicy.permittedPurposes as string[]).includes("ai-train"), false)
 
