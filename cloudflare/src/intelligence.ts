@@ -12,7 +12,6 @@ interface Env {
 }
 
 type SnapshotPayload = BrowserRunSnapshotSuccessResponse | BrowserRunErrorResponse
-type MarkdownPayload = BrowserRunMarkdownSuccessResponse | BrowserRunErrorResponse
 
 const json = (body: unknown, status = 200, headers: HeadersInit = {}) => new Response(JSON.stringify(body), {
   status,
@@ -187,13 +186,19 @@ async function syncKnowledge(request: Request, env: Env, origin: string) {
   try { await instance.info() } catch { instance = await env.AI_SEARCH.create({ id: env.AI_SEARCH_INSTANCE, index_method: { vector: true, keyword: true }, rewrite_query: true }) }
   const synced = []
   for (const target of targets) {
-    const rendered = await env.BROWSER.quickAction("markdown", { url: target.href })
-    const payload = await rendered.json<MarkdownPayload>()
-    if (!rendered.ok || !payload.success) { synced.push({ url: target.href, status: "render_failed" }); continue }
-    const digest = await shortHash(payload.result)
+    const rendered = await env.BROWSER.quickAction("snapshot", { url: target.href, formats: ["content", "markdown", "accessibilityTree"] })
+    const payload = await rendered.json<SnapshotPayload>()
+    const markdown = payload.success ? payload.result.markdown ?? "" : ""
+    if (!rendered.ok || !payload.success || !markdown) { synced.push({ url: target.href, status: "render_failed" }); continue }
+    const digest = await shortHash(markdown)
     const path = target.pathname === "/" ? "index" : target.pathname.replace(/^\/+|\/+$/g, "").replace(/[^a-zA-Z0-9_-]+/g, "-")
-    const filename = `${target.hostname}-${path}-${digest}.md`
-    const item = await instance.items.uploadAndPoll(filename, payload.result, { metadata: { source_url: target.href, origin: target.origin, content_digest: digest, retrieved_at: new Date().toISOString(), license: env.CONTENT_LICENSE_URL }, timeoutMs: 30_000 })
+    const filename = `${target.hostname}-${path}.md`
+    const legacyPrefix = `${target.hostname}-${path}-`
+    const existing = await instance.items.list({ search: legacyPrefix, per_page: 50 })
+    await Promise.all(existing.result.filter((item) => item.key.startsWith(legacyPrefix)).map((item) => instance.items.delete(item.id)))
+    const item = await instance.items.upload(filename, markdown, {
+      metadata: { source_url: target.href, origin: target.origin, content_digest: digest, retrieved_at: new Date().toISOString(), license: env.CONTENT_LICENSE_URL },
+    })
     synced.push({ url: target.href, filename, status: item.status })
   }
   return json({ index: env.AI_SEARCH_INSTANCE, synced }, 200, cors(origin))
