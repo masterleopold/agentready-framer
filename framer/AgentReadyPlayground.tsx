@@ -31,7 +31,7 @@ const button: React.CSSProperties = { height: 36, padding: "0 14px", border: 0, 
 const secondaryButton: React.CSSProperties = { ...button, background: "rgba(255,255,255,0.1)", color: color.text }
 const card: React.CSSProperties = { padding: 20, border: `1px solid ${color.border}`, borderRadius: 14, background: color.card, boxSizing: "border-box", minWidth: 0 }
 const eyebrow = (tint: string): React.CSSProperties => ({ color: tint, font: `500 12px ${sans}`, letterSpacing: "-0.01em", lineHeight: 1 })
-const cardTitle: React.CSSProperties = { margin: "12px 0 6px", color: color.text, font: `500 18px ${display}`, letterSpacing: "-0.02em", lineHeight: 1.2 }
+const cardTitle: React.CSSProperties = { margin: "12px 0 10px", color: color.text, font: `500 18px ${display}`, letterSpacing: "-0.02em", lineHeight: 1.2 }
 const body: React.CSSProperties = { margin: 0, color: color.textSecondary, font: `400 14px ${sans}`, letterSpacing: "-0.1px", lineHeight: 1.5 }
 const price: React.CSSProperties = { marginLeft: "auto", whiteSpace: "nowrap", color: color.textSecondary, fontVariantNumeric: "tabular-nums" }
 const status: React.CSSProperties = { margin: "10px 0 0", color: color.textTertiary, font: `400 12px ${sans}`, lineHeight: 1.4 }
