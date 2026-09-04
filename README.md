@@ -2,15 +2,20 @@
 
 [![CI](https://github.com/masterleopold/agentready-framer/actions/workflows/ci.yml/badge.svg)](https://github.com/masterleopold/agentready-framer/actions/workflows/ci.yml)
 [![Live demo](https://img.shields.io/badge/demo-agentready.framer.website-ffffff?logo=framer&logoColor=black)](https://agentready.framer.website)
+[![Framer Marketplace](https://img.shields.io/badge/Framer_Marketplace-Install-0055FF?logo=framer&logoColor=white)](https://www.framer.com/marketplace/plugins/agentready/)
+[![Demo video](https://img.shields.io/badge/demo_video-2%3A58-FF0000?logo=youtube&logoColor=white)](https://youtu.be/0akv1CvPe_U)
+[![Version](https://img.shields.io/badge/version-0.1.3-222222.svg)](https://www.framer.com/marketplace/plugins/agentready/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-111111.svg)](LICENSE)
 
 **The no-code WebMCP builder for Framer.** AgentReady scans a Framer project, lets its owner choose what agents may do, and publishes typed tools through Framer Custom Code, Cloudflare's edge-injected WebMCP bridge, or both.
 
-**Live demo:** [agentready.framer.website](https://agentready.framer.website)
+**Install:** [AgentReady on the Framer Marketplace](https://www.framer.com/marketplace/plugins/agentready/) · **Live demo:** [agentready.framer.website](https://agentready.framer.website) · **Video:** [2:58 WebMCP demo](https://youtu.be/0akv1CvPe_U)
 
 **Live Shopify product:** [AgentReady — WebMCP Builder for Framer](https://tkigey-1f.myshopify.com/products/agentready-webmcp-builder-for-framer). The Framer playground presents Creator **$49**, Studio **$149**, and Agency **$399**; the connected Shopify development store currently charges the corresponding configured variants in JPY (¥7,500 / ¥22,500 / ¥60,000). Selecting a plan opens that exact variant through Shopify's hosted cart, while payment remains an explicit human action.
 
-![AgentReady running all 30 WebMCP tools inside Framer](docs/brand/framer-plugin-latest-dark.png)
+![AgentReady publishing all 30 WebMCP tools from Framer](docs/brand/marketplace-thumbnail-v3.png)
+
+The public demo shows the full workflow: install AgentReady in Framer, choose the allowed capabilities, publish the generated runtime, and let ChatGPT call the site's WebMCP tools. The agent searches the live site, prepares and submits a demo form with explicit approval, builds a Shopify cart, and stops before checkout or payment.
 
 ## What it does
 
@@ -110,7 +115,7 @@ Framer isolates plugin data and Custom Code by plugin identity. A localhost deve
 
 For Chrome 149+ live testing, register the published first-party origin in the WebMCP origin trial and paste the complete token into **Chrome 149+ Origin Trial**. AgentReady installs it as an `origin-trial` meta element at the start of the document head. The token is origin-bound, public activation metadata—not a secret. For local development, leave it empty and enable `chrome://flags/#enable-webmcp-testing` instead.
 
-Install [AgentReady from the Framer Marketplace](https://www.framer.com/marketplace/plugins/agentready/) or build the Marketplace archive locally with `npm run pack`. Prepared Marketplace copy and media requirements are in [docs/marketplace-listing.md](docs/marketplace-listing.md). Workspace teams may instead host the static `dist` directory on Vercel or Cloudflare Pages, with `framer.json` at the deployment root. Plugin UI hosting is separate from the optional Workers that provide edge integrations.
+Install the current **v0.1.3** release from the [Framer Marketplace](https://www.framer.com/marketplace/plugins/agentready/) or build the Marketplace archive locally with `npm run pack`. Prepared Marketplace copy and media requirements are in [docs/marketplace-listing.md](docs/marketplace-listing.md). Workspace teams may instead host the static `dist` directory on Vercel or Cloudflare Pages, with `framer.json` at the deployment root. Plugin UI hosting is separate from the optional Workers that provide edge integrations.
 
 ## Add the Cloudflare Hybrid gateway
 
@@ -224,7 +229,8 @@ Setup, operational boundaries, and common validation commands are documented in 
 - [WebMCP specification, explainer, and open-issues audit](docs/webmcp-spec-audit.md)
 - [Request coverage and launch status](docs/request-coverage.md)
 - [Challenge checklist](docs/challenge-checklist.md)
-- [Submission copy, demo prompts, and video outline](docs/submission.md)
+- [Devpost submission copy and testing instructions](devpost-submission.md)
+- [Demo prompts and video runbook](docs/demo-video-runbook.md)
 - [Framer Marketplace listing and publication preflight](docs/marketplace-listing.md)
 - [Cloudflare deployment guide](cloudflare/README.md)
 

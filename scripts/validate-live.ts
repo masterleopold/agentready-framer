@@ -17,19 +17,14 @@ const html = await response.text()
 assert.match(html, /id="agentready-webmcp"/, "AgentReady custom code is missing.")
 const installations = [...html.matchAll(/<script id="agentready-webmcp">[\s\S]*?<\/script>/g)]
 if (process.env.AGENTREADY_STRICT_INSTALLATION === "1") assert.equal(installations.length, 1, "Expected exactly one AgentReady Custom Code installation.")
-const selectedInstallation = [...installations].sort((left, right) => {
-  const generatedAt = (match: RegExpMatchArray) => Date.parse(match[0].match(/"generatedAt":"([^"]+)"/)?.[1] ?? "") || 0
-  return generatedAt(left) - generatedAt(right)
-}).at(-1)
-assert(selectedInstallation, "No AgentReady runtime script could be selected.")
-const selectedHtml = html.replace(/<script id="agentready-webmcp">[\s\S]*?<\/script>/g, "").replace("</body>", `${selectedInstallation[0]}</body>`)
+assert(installations.length > 0, "No AgentReady runtime script could be selected.")
 
-const tools: RegisteredTool[] = []
+const activeTools = new Map<string, RegisteredTool>()
 const virtualConsole = new VirtualConsole()
 virtualConsole.on("error", () => undefined)
 virtualConsole.on("jsdomError", () => undefined)
 
-const dom = new JSDOM(selectedHtml, {
+const dom = new JSDOM(html, {
   url: demoUrl,
   runScripts: "dangerously",
   virtualConsole,
@@ -41,8 +36,11 @@ const dom = new JSDOM(selectedHtml, {
     Object.defineProperty(window.document, "modelContext", {
       configurable: true,
       value: {
-        registerTool(tool: RegisteredTool) {
-          tools.push(tool)
+        registerTool(tool: RegisteredTool, options?: { signal?: AbortSignal }) {
+          activeTools.set(tool.name, tool)
+          options?.signal?.addEventListener("abort", () => {
+            if (activeTools.get(tool.name) === tool) activeTools.delete(tool.name)
+          }, { once: true })
           return Promise.resolve()
         },
       },
@@ -59,6 +57,7 @@ await new Promise((resolve) => setTimeout(resolve, 100))
 const registration = (dom.window as unknown as { __agentReadyRegistration?: Promise<{ ready: boolean }> }).__agentReadyRegistration
 if (registration) assert.equal((await registration).ready, true)
 
+const tools = [...activeTools.values()]
 const names = tools.map((tool) => tool.name).sort()
 assert.ok(tools.every((tool) => tool.title?.length > 0), "Every live tool must expose a title.")
 assert.ok(tools.every((tool) => Object.keys(tool.annotations ?? {}).every((key) => ["readOnlyHint", "untrustedContentHint"].includes(key))), "Live tools must use only standard WebMCP annotations.")
@@ -122,12 +121,29 @@ assert.equal(dom.window.document.querySelector<HTMLInputElement>('[name="buyerEm
 const searchShopify = tools.find((tool) => tool.name === "search_shopify_catalog")
 assert(searchShopify)
 const shopifyResult = await searchShopify.execute({ query: "AgentReady", limit: 5, context: { addressCountry: "JP", language: "en", currency: "JPY" } })
-if (shopifyResult.outcome === "truncated") {
-  assert.equal(shopifyResult.retryable, true)
-  assert.match(String(shopifyResult.preview), /"transport":"ucp"/, "The live catalog did not use Shopify UCP.")
-} else {
-  assert.equal(shopifyResult.transport, "ucp", "The live product should use Shopify's native UCP catalog.")
-}
+assert.equal(shopifyResult.outcome, undefined, "The live Shopify catalog must return a compact result without truncation.")
+assert.equal(shopifyResult.transport, "ucp", "The live product should use Shopify's native UCP catalog.")
+assert.ok(JSON.stringify(shopifyResult).length <= 1_500, "The live Shopify result must fit AgentReady's WebMCP output budget.")
+assert.equal(JSON.stringify(shopifyResult).includes("capabilities"), false, "UCP protocol metadata must not be returned to ChatGPT as catalog content.")
+assert.ok(Array.isArray(shopifyResult.products) && shopifyResult.products.some((product: { title?: string }) => product.title?.includes("AgentReady")), "The compact live catalog did not include AgentReady.")
+const agentReadyProduct = (shopifyResult.products as Array<{ title?: string; variants?: Array<{ id?: string; title?: string }> }>).find((product) => product.title?.includes("AgentReady"))
+const creatorVariant = agentReadyProduct?.variants?.find((variant) => variant.title?.includes("Creator"))
+assert.match(creatorVariant?.id ?? "", /^gid:\/\/shopify\/ProductVariant\//, "The live catalog did not expose the Creator variant ID.")
+
+const updateShopifyCart = tools.find((tool) => tool.name === "update_shopify_cart")
+assert(updateShopifyCart)
+const cartResult = await updateShopifyCart.execute({ lines: [{ merchandiseId: creatorVariant?.id, quantity: 1 }] })
+assert.equal(cartResult.outcome, undefined, "The live cart update must complete without output truncation.")
+assert.equal(cartResult.transport, "ucp", "The live cart update must use Shopify UCP.")
+assert.equal(cartResult.updated, true, "The live cart update failed.")
+
+const prepareShopifyCheckout = tools.find((tool) => tool.name === "prepare_shopify_checkout")
+assert(prepareShopifyCheckout)
+const checkoutResult = await prepareShopifyCheckout.execute({ open: false })
+assert.equal(checkoutResult.outcome, undefined, "The live checkout handoff must complete without output truncation.")
+assert.equal(checkoutResult.ready, true, "The live Shopify checkout was not ready.")
+assert.equal(checkoutResult.opened, false, "The validation must not open hosted checkout.")
+assert.match(String(checkoutResult.checkoutUrl), /^https:\/\//, "The live checkout URL must use HTTPS.")
 const ucpResponse = await fetch("https://tkigey-1f.myshopify.com/api/ucp/mcp", {
   method: "POST",
   headers: { "content-type": "application/json" },
@@ -139,5 +155,5 @@ const ucpProducts = ucpPayload.result?.structuredContent?.products ?? []
 assert.ok(ucpProducts.some((product) => product.title?.includes("AgentReady") && product.variants?.length === 3), "Shopify UCP did not return the live AgentReady product and its three variants.")
 
 console.log(`AgentReady live validation passed: ${demoUrl}`)
-if (installations.length > 1) console.warn(`Warning: ${installations.length} AgentReady Custom Code entries detected; validated the newest one. Remove duplicate plugin identities and rerun with AGENTREADY_STRICT_INSTALLATION=1.`)
+if (installations.length > 1) console.warn(`Warning: ${installations.length} AgentReady Custom Code entries detected; verified that the current runtime recovers control. Remove the legacy plugin identity when convenient.`)
 console.log(`Registered tools: ${names.join(", ")}`)

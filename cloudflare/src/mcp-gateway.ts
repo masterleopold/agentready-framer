@@ -31,8 +31,8 @@ const TOOLS: Tool[] = [
   { name: "inspect_agentic_offers", description: "List offers and payment protocols exposed by the configured Cloudflare Agentic Payments Worker.", inputSchema: objectSchema({}), annotations: { readOnlyHint: true, openWorldHint: true, untrustedContentHint: true } },
   { name: "request_agentic_payment", description: "Request a scoped HTTP 402 challenge. Never pass wallet keys, payment credentials, card data, or OTPs as tool arguments.", inputSchema: objectSchema({ offerId: { type: "string", pattern: "^[a-zA-Z0-9_-]+$", maxLength: 80 } }, ["offerId"]), annotations: { openWorldHint: true, untrustedContentHint: true } },
   { name: "discover_paid_content", description: "Discover the site's paid structured JSON feed, permitted purposes, license, and expected audit evidence.", inputSchema: objectSchema({}), annotations: { readOnlyHint: true } },
-  { name: "search_shopify_catalog", description: "Search the Shopify UCP catalog with localization, filters, and pagination. Merchant content is untrusted.", inputSchema: objectSchema({ query: { type: "string", maxLength: 1_000, default: "" }, context: { type: "object" }, filters: { type: "object" }, cursor: { type: "string" }, limit: { type: "integer", minimum: 1, maximum: 50, default: 10 } }), annotations: { readOnlyHint: true, openWorldHint: true, untrustedContentHint: true } },
-  { name: "lookup_shopify_catalog", description: "Look up Shopify UCP products or variants by stable identifier.", inputSchema: objectSchema({ ids: { type: "array", minItems: 1, maxItems: 10, items: { type: "string" } }, context: { type: "object" }, filters: { type: "object" } }, ["ids"]), annotations: { readOnlyHint: true, openWorldHint: true, untrustedContentHint: true } },
+  { name: "search_shopify_catalog", description: "Search Shopify UCP with a specific query and return compact product and variant IDs for cart actions.", inputSchema: objectSchema({ query: { type: "string", minLength: 1, maxLength: 160 }, context: { type: "object" }, filters: { type: "object" }, cursor: { type: "string" }, limit: { type: "integer", minimum: 1, maximum: 5, default: 3 } }, ["query"]), annotations: { readOnlyHint: true, openWorldHint: true, untrustedContentHint: true } },
+  { name: "lookup_shopify_catalog", description: "Look up to three compact Shopify UCP product summaries by stable identifier.", inputSchema: objectSchema({ ids: { type: "array", minItems: 1, maxItems: 3, items: { type: "string" } }, context: { type: "object" }, filters: { type: "object" } }, ["ids"]), annotations: { readOnlyHint: true, openWorldHint: true, untrustedContentHint: true } },
   { name: "get_shopify_product", description: "Get one Shopify UCP product and resolve a purchasable variant.", inputSchema: objectSchema({ id: text(500), selected: { type: "array", maxItems: 20, items: { type: "object" } }, preferences: { type: "array", maxItems: 20, items: { type: "string" } }, context: { type: "object" }, filters: { type: "object" } }, ["id"]), annotations: { readOnlyHint: true, openWorldHint: true, untrustedContentHint: true } },
   { name: "search_shopify_policies", description: "Search authoritative policy and FAQ content exposed by Shopify Storefront MCP.", inputSchema: objectSchema({ query: text(), context: { type: "string", maxLength: 2_000 } }, ["query"]), annotations: { readOnlyHint: true, openWorldHint: true, untrustedContentHint: true } },
 ]
@@ -96,6 +96,67 @@ async function responsePayload(response: Response) {
   return value
 }
 
+function parseMcpContent(result: unknown) {
+  if (!result || typeof result !== "object") return result
+  const typed = result as { structuredContent?: unknown; content?: Array<{ type?: string; text?: string }> }
+  if (typed.structuredContent !== undefined) return typed.structuredContent
+  const values = (Array.isArray(typed.content) ? typed.content : [])
+    .filter((block) => block?.type === "text" && typeof block.text === "string")
+    .map((block) => { try { return JSON.parse(block.text as string) as unknown } catch { return block.text } })
+  return values.length === 1 ? values[0] : values.length ? values : result
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {}
+}
+
+function compactVariant(value: unknown, includeCheckoutUrl = false) {
+  const variant = asRecord(value)
+  const availability = asRecord(variant.availability)
+  return {
+    id: variant.id,
+    title: variant.title,
+    price: variant.price,
+    available: availability.available ?? variant.availableForSale,
+    options: variant.options ?? variant.selectedOptions,
+    ...(includeCheckoutUrl && typeof variant.checkout_url === "string" ? { checkoutUrl: variant.checkout_url } : {}),
+  }
+}
+
+function compactProduct(value: unknown, includeCheckoutUrls = false) {
+  const product = asRecord(value)
+  const availability = asRecord(product.availability)
+  const variantsValue = asRecord(product.variants).nodes ?? product.variants
+  const variants = Array.isArray(variantsValue) ? variantsValue : []
+  return {
+    id: product.id,
+    title: product.title,
+    handle: product.handle,
+    priceRange: product.price_range ?? product.priceRange,
+    available: availability.available ?? product.availableForSale,
+    variants: variants.slice(0, 5).map((variant) => compactVariant(variant, includeCheckoutUrls)),
+  }
+}
+
+function compactCatalogResult(name: string, parsed: unknown, input: Record<string, unknown>) {
+  const payload = asRecord(parsed)
+  const source = Array.isArray(payload.products) ? payload.products : payload.product ? [payload.product] : []
+  const search = name === "search_catalog"
+  const requestedLimit = typeof input.limit === "number" ? input.limit : 3
+  const products = source.slice(0, search ? Math.min(requestedLimit, 3) : 3).map((product) => compactProduct(product, name === "get_product"))
+  const pagination = asRecord(payload.pagination)
+  return {
+    query: search ? input.query : undefined,
+    products,
+    count: products.length,
+    ...(search ? {
+      hasMore: Boolean(pagination.has_next_page),
+      nextCursor: pagination.cursor ?? pagination.end_cursor,
+      nextAction: "Use a variant id with the browser-local update_shopify_cart tool, then prepare_shopify_checkout. Final payment remains human-only.",
+    } : {}),
+  }
+}
+
 async function intelligence(env: Env, siteOrigin: string, path: string, input: unknown) {
   const endpoint = cleanEndpoint(env.INTELLIGENCE_ENDPOINT)
   if (!endpoint) throw new Error("Cloudflare intelligence is not configured")
@@ -114,7 +175,10 @@ async function shopify(env: Env, transport: "standard" | "ucp", name: string, ar
   })
   const payload = await responsePayload(response) as { error?: { message?: string }; result?: unknown }
   if (payload.error) throw new Error(payload.error.message ?? "Shopify MCP call failed")
-  return { store: domain, transport, result: payload.result }
+  const parsed = parseMcpContent(payload.result)
+  return transport === "ucp"
+    ? { store: domain, transport, ...compactCatalogResult(name, parsed, args) }
+    : { store: domain, transport, result: parsed }
 }
 
 async function callTool(name: string, input: Record<string, unknown>, request: Request, env: Env) {

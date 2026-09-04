@@ -167,21 +167,23 @@ Object.defineProperty(dom.window, "fetch", { value: async (url: string, init?: {
     shopifyMcpPayloads.push(payload as unknown as Record<string, unknown>)
     const ucp = url.includes("/api/ucp/mcp")
     const tools = ucp
-      ? ["search_catalog", "lookup_catalog", "get_product"]
+      ? ["search_catalog", "lookup_catalog", "get_product", "get_cart", "create_cart", "update_cart"]
       : ["search_shop_policies_and_faqs", "get_cart", "update_cart"]
     if (payload.method === "tools/list" && !ucp && shopifyStandardRateLimits++ === 0) return {
       ok: false, status: 429, headers: { get: (name: string) => name === "Retry-After" ? "0" : null }, json: async () => ({ error: "rate limited" }),
     }
     if (payload.method === "tools/list") return {
       ok: true, status: 200, headers: { get: () => null },
-      json: async () => ({ jsonrpc: "2.0", id: 1, result: { tools: tools.map((name) => ({ name, inputSchema: { type: "object", properties: name === "update_cart" ? { add_items: { type: "array" } } : {} } })) } }),
+      json: async () => ({ jsonrpc: "2.0", id: 1, result: { tools: tools.map((name) => ({ name, inputSchema: { type: "object", properties: {} } })) } }),
     }
     const name = payload.params?.name
     let result: Record<string, unknown>
     if (name === "search_catalog") result = (payload.params?.arguments as { catalog?: { query?: string } } | undefined)?.catalog?.query === "empty" ? { ucp: { version: "2026-08-25" }, products: [] } : { ucp: { version: "2026-08-25" }, products: [{ id: "gid://shopify/Product/1", title: "Agent Kit", variants: [{ id: "gid://shopify/ProductVariant/1", title: "Default", price: { amount: 2900, currency: "USD" } }] }] }
     else if (name === "lookup_catalog" || name === "get_product") result = { product: { id: "gid://shopify/Product/1", title: "Agent Kit", variants: [{ id: "gid://shopify/ProductVariant/1" }] } }
     else if (name === "search_shop_policies_and_faqs") result = { answer: "Returns are accepted within 30 days." }
-    else result = { cart_id: "gid://shopify/Cart/demo?key=secret", checkout_url: "https://agentready.myshopify.com/checkouts/demo", total_quantity: 1, line_items: [{ id: "gid://shopify/CartLine/1", quantity: 1 }] }
+    else result = ucp
+      ? { id: "gid://shopify/Cart/demo?key=secret", continue_url: "https://agentready.myshopify.com/cart/c/demo", line_items: [{ id: "gid://shopify/CartLine/1", quantity: 1 }] }
+      : { cart_id: "gid://shopify/Cart/demo?key=secret", checkout_url: "https://agentready.myshopify.com/checkouts/demo", total_quantity: 1, line_items: [{ id: "gid://shopify/CartLine/1", quantity: 1 }] }
     return {
       ok: true, status: 200, headers: { get: () => null },
       json: async () => ({ jsonrpc: "2.0", id: 2, result: { content: [{ type: "text", text: JSON.stringify(result) }] } }),
@@ -299,9 +301,17 @@ assert.equal((sent.newMessages as ConversationMessage[]).at(-1)?.role, "assistan
 
 const products = await run("search_shopify_catalog", { query: "agent", limit: 5, context: { addressCountry: "jp", language: "ja", currency: "jpy" } })
 assert.equal(products.transport, "ucp")
+assert.equal(products.outcome, undefined, "targeted Shopify search must not be truncated")
+assert.ok(JSON.stringify(products).length <= 1_500, "targeted Shopify search must fit the WebMCP output budget")
+assert.equal(JSON.stringify(products).includes("capabilities"), false, "UCP capability metadata must not leak into product search results")
+assert.equal((products.products as Array<{ variants?: unknown[] }>)[0]?.variants?.length, 1)
 assert.equal((await run("search_shopify_catalog", { query: "empty" })).transport, "graphql-fallback", "empty UCP eligibility results must fall back to the public Storefront catalog")
-assert.equal((await run("lookup_shopify_catalog", { ids: ["gid://shopify/Product/1"] })).transport, "ucp")
-assert.equal((await run("get_shopify_product", { id: "gid://shopify/Product/1", selected: [{ name: "Color", label: "Blue" }] })).transport, "ucp")
+const lookup = await run("lookup_shopify_catalog", { ids: ["gid://shopify/Product/1"] })
+assert.equal(lookup.transport, "ucp")
+assert.ok(JSON.stringify(lookup).length <= 1_500)
+const product = await run("get_shopify_product", { id: "gid://shopify/Product/1", selected: [{ name: "Color", label: "Blue" }] })
+assert.equal(product.transport, "ucp")
+assert.ok(JSON.stringify(product).length <= 1_500)
 assert.equal((await run("search_shopify_policies", { query: "Returns?" })).sourcePolicy, "merchant-only")
 const added = await run("update_shopify_cart", { lines: [{ merchandiseId: "gid://shopify/ProductVariant/1", quantity: 1 }] })
 assert.equal(added.updated, true)
@@ -313,9 +323,10 @@ assert.equal(shopifyCheckout.requiresUserAction, true)
 const searchCall = shopifyMcpPayloads.find((payload) => (payload.params as { name?: string } | undefined)?.name === "search_catalog") as { params: { arguments: { meta: { "ucp-agent": { profile: string } }; catalog: { context: { address_country: string; language: string; currency: string } } } } }
 assert.equal(searchCall.params.arguments.meta["ucp-agent"].profile, "https://agentready.example/.well-known/ucp-agent.json")
 assert.deepEqual(searchCall.params.arguments.catalog.context, { address_country: "JP", language: "ja", currency: "JPY" })
-const updateCall = shopifyMcpPayloads.find((payload) => (payload.params as { name?: string } | undefined)?.name === "update_cart") as { params: { arguments: { add_items: unknown[]; cart_id?: string } } }
-assert.equal(updateCall.params.arguments.add_items.length, 1)
-assert.equal(updateCall.params.arguments.cart_id, undefined)
+const updateCall = shopifyMcpPayloads.find((payload) => (payload.params as { name?: string } | undefined)?.name === "create_cart") as { params: { arguments: { meta: { "ucp-agent": { profile: string } }; cart: { line_items: Array<{ item: { id: string }; quantity: number }> }; id?: string } } }
+assert.equal(updateCall.params.arguments.cart.line_items.length, 1)
+assert.equal(updateCall.params.arguments.cart.line_items[0]?.item.id, "gid://shopify/ProductVariant/1")
+assert.equal(updateCall.params.arguments.id, undefined)
 assert.equal(shopifyMcpPayloads.filter((payload) => payload.method === "tools/list").length, 3, "one rate-limit retry plus one cached discovery per endpoint")
 assert.equal(shopifyStandardRateLimits, 2)
 assert.equal((await run("inspect_agentic_offers")).available, true)

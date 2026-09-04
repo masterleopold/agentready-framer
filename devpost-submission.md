@@ -80,7 +80,9 @@ https://github.com/masterleopold/agentready-framer
 
 ## Demo Video
 
-TODO: Add the public YouTube URL. The final video must be under three minutes and include audio.
+https://youtu.be/0akv1CvPe_U
+
+Public YouTube demo with audio. Verified duration: 2:58.
 
 Proposed sequence:
 
@@ -105,8 +107,8 @@ Proposed sequence:
 - Public repository: ready; GitHub detects the MIT license
 - Latest GitHub Actions CI: passing
 - Automated live WebMCP validation: passing with all 30 tools
-- ChatGPT Site tools call: TODO — capture one successful real invocation
-- Public YouTube demo: TODO
+- ChatGPT Site tools call: ready — successful real invocations are shown in the public demo video
+- Public YouTube demo: ready — https://youtu.be/0akv1CvPe_U (2:58)
 - Devpost form: TODO — paste the final copy and submit before September 4, 2026 at 1:00 AM PT / 5:00 PM JST
 
 ## Known Limitations
@@ -120,8 +122,6 @@ Proposed sequence:
 
 ## TODO Official Form Fields
 
-- Public YouTube demo URL
 - Final thumbnail and gallery images selected in Devpost
 - Team members, if any
 - Any optional testing notes requested by the live Devpost form
-- Final confirmation that the ChatGPT Site tools demo was recorded successfully

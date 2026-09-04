@@ -10,7 +10,7 @@ node_modules/
 # misc
 
 .DS_Store
-\*.pem
+*.pem
 
 # files
 
@@ -26,7 +26,9 @@ yarn-error.log\*
 
 # local env files
 
-.env\*.local
+.env
+.env.*
+!.env.example
 .dev.vars
 .wrangler/
 .playwright-mcp/
@@ -34,3 +36,15 @@ yarn-error.log\*
 # Packed plugin
 
 plugin.zip
+AgentReady*.zip
+
+# Local hackathon and media production
+
+.devpost-hackathon-state.json
+docs/demo/
+scripts/generate-narration.mjs
+
+# Intermediate Marketplace artwork
+
+docs/brand/marketplace-background-geometric.png
+docs/brand/plugin-panel-clean.png
